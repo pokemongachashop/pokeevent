@@ -18,3 +18,4 @@ apiKey: "AIzaSyBTQp-Weq3VvyJaJxVxiLYPeyvZ2owhUow",
 };
 
 export const ADMIN_EMAIL = "hongbono011102@gmail.com";
+export const SCHEDULE = { intervalMinutes: 120, offsetMinutes: 30, minPlayers: 6, maxPlayers: 20 };
