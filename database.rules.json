@@ -1,11 +1,9 @@
 {
   "rules": {
     ".read": false,
-    ".write": "auth != null && auth.token.email == 'hongbono011102@gmail.com'",
+    ".write": "auth != null && (auth.token.email == 'admin@example.com' || auth.token.email == 'admin2@example.com')",
 
-    "room":    { ".read": true },
-    "config":  { ".read": true },
-    "history": { ".read": true },
+    "config": { ".read": true },
 
     "presence": {
       ".read": true,
@@ -29,19 +27,29 @@
       }
     },
 
-    "userPick": {
+    "entries": {
       ".read": true,
-      "$uid": {
-        ".write": "auth != null && auth.uid == $uid && !root.child('room/race').exists() && (!data.exists() || newData.parent().parent().child('picks').child(data.val()).child('uid').val() != auth.uid)",
-        ".validate": "newData.isString() && newData.val().matches(/^[1-8]$/) && newData.parent().parent().child('picks').child(newData.val()).child('uid').val() == auth.uid"
+      "$slot": {
+        "$uid": {
+          ".write": "auth != null && auth.uid == $uid && $slot.matches(/^[0-9]{13}$/) && (!data.exists() || data.child('closeAt').val() > now)",
+          ".validate": "newData.hasChildren(['nick', 'species', 'color', 'at', 'closeAt']) && newData.child('at').val() == now && newData.child('closeAt').isNumber() && newData.child('closeAt').val() > now && newData.child('closeAt').val() < now + 86400000 && newData.child('nick').val() == root.child('users').child(auth.uid).child('nick').val() && newData.child('species').isNumber() && newData.child('species').val() >= 1 && newData.child('species').val() <= 8 && newData.child('color').isNumber() && newData.child('color').val() >= 0 && newData.child('color').val() <= 11"
+        }
       }
     },
 
-    "picks": {
+    "winners": {
       ".read": true,
-      "$lane": {
-        ".write": "auth != null && !root.child('room/race').exists() && ((!data.exists() && newData.child('uid').val() == auth.uid && newData.parent().parent().child('userPick').child(auth.uid).val() == $lane) || (data.child('uid').val() == auth.uid && !newData.exists()))",
-        ".validate": "$lane.matches(/^[1-8]$/) && newData.hasChildren(['uid', 'nick']) && newData.child('nick').val() == root.child('users').child(auth.uid).child('nick').val()"
+      "$slot": {
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.hasChildren(['uid', 'nick', 'species', 'count', 'round', 'slot'])"
+      }
+    },
+
+    "results": {
+      ".read": true,
+      "$slot": {
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.hasChildren(['ranking', 'round', 'count', 'randomness'])"
       }
     }
   }
