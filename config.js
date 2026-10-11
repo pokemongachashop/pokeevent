@@ -17,4 +17,4 @@ apiKey: "AIzaSyBTQp-Weq3VvyJaJxVxiLYPeyvZ2owhUow",
   appId: "1:3509285379:web:7bc8992f03665ee8ac5436"
 };
 
-export const ADMIN_EMAIL = "hongbono011102@gmail.com","xixxn00@gmail.com";
+export const ADMIN_EMAIL = "hongbono011102@gmail.com";
