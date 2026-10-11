@@ -17,5 +17,5 @@ apiKey: "AIzaSyBTQp-Weq3VvyJaJxVxiLYPeyvZ2owhUow",
   appId: "1:3509285379:web:7bc8992f03665ee8ac5436"
 };
 
-export const ADMIN_EMAIL = "hongbono011102@gmail.com";
+export const ADMIN_EMAIL = "pokepack1010@gmail.com";
 export const SCHEDULE = { intervalMinutes: 120, offsetMinutes: 30, minPlayers: 6, maxPlayers: 20 };
