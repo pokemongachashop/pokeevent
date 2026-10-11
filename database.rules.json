@@ -16,14 +16,25 @@
       ".read": true,
       "$uid": {
         ".write": "auth != null && auth.uid == $uid",
-        ".validate": "newData.hasChildren(['nick']) && newData.child('nick').isString() && newData.child('nick').val().length >= 1 && newData.child('nick').val().length <= 20"
+        ".validate": "newData.hasChildren(['nick']) && newData.child('nick').isString() && newData.child('nick').val().length >= 1 && newData.child('nick').val().length <= 20 && newData.parent().parent().child('names').child(newData.child('nick').val().toLowerCase()).child('owner/uid').val() == auth.uid"
       }
     },
 
-    "nicks": {
-      ".read": true,
+    "names": {
       "$key": {
-        ".write": "auth != null && ((newData.val() == auth.uid && (!data.exists() || data.val() == auth.uid)) || (!newData.exists() && data.val() == auth.uid))"
+        "owner": {
+          ".read": true,
+          ".write": "auth != null && ((newData.exists() && newData.child('uid').val() == auth.uid && (!data.exists() || data.child('uid').val() == auth.uid || (newData.parent().child('proof/uid').val() == auth.uid && newData.parent().child('proof/hash').val() == data.parent().child('hash').val()))) || (!newData.exists() && data.child('uid').val() == auth.uid))",
+          ".validate": "newData.hasChildren(['uid', 'nick']) && newData.child('nick').isString() && newData.child('nick').val().length >= 1 && newData.child('nick').val().length <= 20 && newData.child('nick').val().toLowerCase() == $key && newData.parent().child('hash').exists()"
+        },
+        "hash": {
+          ".write": "auth != null && ((newData.exists() && (!data.exists() || newData.val() == data.val() || data.parent().child('owner/uid').val() == auth.uid)) || (!newData.exists() && data.parent().child('owner/uid').val() == auth.uid))",
+          ".validate": "newData.isString() && newData.val().length == 64"
+        },
+        "proof": {
+          ".write": "auth != null && (!newData.exists() || newData.child('uid').val() == auth.uid)",
+          ".validate": "newData.hasChildren(['uid', 'hash'])"
+        }
       }
     },
 
@@ -32,7 +43,7 @@
       "$slot": {
         "$uid": {
           ".write": "auth != null && auth.uid == $uid && $slot.matches(/^[0-9]{13}$/) && (!data.exists() || data.child('closeAt').val() > now)",
-          ".validate": "newData.hasChildren(['nick', 'species', 'color', 'at', 'closeAt']) && newData.child('at').val() == now && newData.child('closeAt').isNumber() && newData.child('closeAt').val() > now && newData.child('closeAt').val() < now + 86400000 && newData.child('nick').val() == root.child('users').child(auth.uid).child('nick').val() && newData.child('species').isNumber() && newData.child('species').val() >= 1 && newData.child('species').val() <= 8 && newData.child('color').isNumber() && newData.child('color').val() >= 0 && newData.child('color').val() <= 11"
+          ".validate": "newData.hasChildren(['nick', 'species', 'color', 'at', 'closeAt']) && newData.child('at').val() == now && newData.child('closeAt').isNumber() && newData.child('closeAt').val() > now && newData.child('closeAt').val() < now + 86400000 && newData.child('nick').val() == root.child('users').child(auth.uid).child('nick').val() && root.child('names').child(newData.child('nick').val().toLowerCase()).child('owner/uid').val() == auth.uid && newData.child('species').isNumber() && newData.child('species').val() >= 1 && newData.child('species').val() <= 8 && newData.child('color').isNumber() && newData.child('color').val() >= 0 && newData.child('color').val() <= 11"
         }
       }
     },
