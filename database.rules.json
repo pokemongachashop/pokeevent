@@ -1,0 +1,48 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": "auth != null && auth.token.email == 'hongbono011102@gmail.com'",
+
+    "room":    { ".read": true },
+    "config":  { ".read": true },
+    "history": { ".read": true },
+
+    "presence": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+
+    "users": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && auth.uid == $uid",
+        ".validate": "newData.hasChildren(['nick']) && newData.child('nick').isString() && newData.child('nick').val().length >= 1 && newData.child('nick').val().length <= 20"
+      }
+    },
+
+    "nicks": {
+      ".read": true,
+      "$key": {
+        ".write": "auth != null && ((newData.val() == auth.uid && (!data.exists() || data.val() == auth.uid)) || (!newData.exists() && data.val() == auth.uid))"
+      }
+    },
+
+    "userPick": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && auth.uid == $uid && !root.child('room/race').exists() && (!data.exists() || newData.parent().parent().child('picks').child(data.val()).child('uid').val() != auth.uid)",
+        ".validate": "newData.isString() && newData.val().matches(/^[1-8]$/) && newData.parent().parent().child('picks').child(newData.val()).child('uid').val() == auth.uid"
+      }
+    },
+
+    "picks": {
+      ".read": true,
+      "$lane": {
+        ".write": "auth != null && !root.child('room/race').exists() && ((!data.exists() && newData.child('uid').val() == auth.uid && newData.parent().parent().child('userPick').child(auth.uid).val() == $lane) || (data.child('uid').val() == auth.uid && !newData.exists()))",
+        ".validate": "$lane.matches(/^[1-8]$/) && newData.hasChildren(['uid', 'nick']) && newData.child('nick').val() == root.child('users').child(auth.uid).child('nick').val()"
+      }
+    }
+  }
+}

@@ -1,0 +1,1433 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>포켓 더비 - 커뮤니티 레이스 이벤트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eaf7ff;
+    --panel: #ffffff;
+    --ink: #2b2d42;
+    --muted: #7a7f99;
+    --line: #dfe6f3;
+    --primary: #ff5c5c;
+    --primary-dark: #d94141;
+    --accent: #ffcb05;
+    --blue: #3b6fd8;
+    --green: #39b56a;
+    --shadow: 0 6px 0 rgba(43, 45, 66, 0.12);
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Gowun Dodum', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 10% 0%, #fff6c9 0, transparent 40%),
+      radial-gradient(circle at 90% 10%, #ffe1e1 0, transparent 35%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  .jua { font-family: 'Jua', 'Gowun Dodum', sans-serif; letter-spacing: 0.5px; }
+  button { font-family: inherit; cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+
+  /* Header */
+  header {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 14px 20px; max-width: 1400px; margin: 0 auto;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Jua', sans-serif; font-size: 28px; color: var(--ink);
+  }
+  .ball {
+    width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--ink);
+    background: linear-gradient(#ff5c5c 0 46%, var(--ink) 46% 54%, #fff 54% 100%);
+    position: relative; flex: none;
+  }
+  .ball::after {
+    content: ''; position: absolute; width: 10px; height: 10px; border-radius: 50%;
+    background: #fff; border: 3px solid var(--ink); left: 50%; top: 50%; transform: translate(-50%, -50%);
+  }
+  .chip {
+    font-family: 'Jua', sans-serif; font-size: 15px; padding: 6px 12px; border-radius: 999px;
+    background: #fff; border: 2px solid var(--line); color: var(--ink);
+  }
+  .chip.phase-waiting { background: #e6f8ee; border-color: #9fe0b9; color: #1d7a45; }
+  .chip.phase-countdown { background: #fff5cc; border-color: #ffd84d; color: #8a6a00; }
+  .chip.phase-racing { background: #ffe3e3; border-color: #ff9c9c; color: #b32424; }
+  .chip.phase-finished { background: #e7eeff; border-color: #a9c0ff; color: #2c4fa8; }
+  .spacer { flex: 1; }
+  .me { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+  .me b { font-family: 'Jua', sans-serif; font-size: 18px; }
+  .btn {
+    border: none; border-radius: 12px; padding: 9px 16px; font-size: 15px; font-family: 'Jua', sans-serif;
+    background: #fff; color: var(--ink); box-shadow: 0 3px 0 rgba(43,45,66,.18); border: 2px solid var(--ink);
+    transition: transform .08s;
+  }
+  .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 rgba(43,45,66,.18); }
+  .btn.primary { background: var(--primary); color: #fff; }
+  .btn.yellow { background: var(--accent); }
+  .btn.blue { background: var(--blue); color: #fff; }
+  .btn.green { background: var(--green); color: #fff; }
+  .btn.ghost { background: transparent; box-shadow: none; border-color: var(--line); }
+  .btn.small { padding: 5px 10px; font-size: 13px; border-radius: 9px; }
+  .btn:disabled { opacity: .45; }
+
+  /* Layout */
+  main {
+    max-width: 1400px; margin: 0 auto; padding: 0 20px 30px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px;
+  }
+  @media (max-width: 1050px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border-radius: var(--radius); border: 3px solid var(--ink);
+    box-shadow: var(--shadow); padding: 14px;
+  }
+  .stage { padding: 10px; }
+  .stage canvas {
+    display: block; width: 100%; height: auto; border-radius: 12px;
+    image-rendering: auto; background: #8fd16a;
+  }
+  .status-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 10px 4px 2px; font-size: 15px;
+  }
+  .status-bar .msg { font-family: 'Jua', sans-serif; font-size: 18px; }
+  .live-rank { display: flex; gap: 6px; flex-wrap: wrap; }
+  .live-rank span {
+    font-family: 'Jua', sans-serif; font-size: 13px; padding: 3px 8px; border-radius: 8px;
+    border: 2px solid rgba(0,0,0,.15);
+  }
+
+  h2 { font-family: 'Jua', sans-serif; font-weight: normal; font-size: 22px; margin: 4px 4px 12px; }
+  .pick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 720px) { .pick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .pick {
+    position: relative; border-radius: 16px; border: 3px solid var(--ink); background: #fff;
+    padding: 12px 10px 10px; text-align: center; box-shadow: 0 4px 0 rgba(43,45,66,.15);
+    transition: transform .1s, background .2s; user-select: none;
+  }
+  .pick.available { cursor: pointer; }
+  .pick.available:hover { transform: translateY(-3px); }
+  .pick.taken { background: #f1f2f6; }
+  .pick.taken .thumb { filter: grayscale(.6); opacity: .7; }
+  .pick.mine { background: #fff6d6; border-color: #e0a800; box-shadow: 0 4px 0 #e0a800; }
+  .pick.locked { cursor: default; }
+  .pick .num {
+    position: absolute; left: 8px; top: 8px; width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid var(--ink); font-family: 'Jua', sans-serif; font-size: 15px; line-height: 24px;
+  }
+  .thumb {
+    width: 64px; height: 64px; margin: 2px auto 6px; border-radius: 50%; border: 3px solid var(--ink);
+    display: grid; place-items: center; overflow: hidden; font-family: 'Jua', sans-serif; font-size: 26px; color: #fff;
+    text-shadow: 0 2px 0 rgba(0,0,0,.25); background-size: contain; background-position: center; background-repeat: no-repeat;
+  }
+  .thumb.has-img { border-radius: 14px; background-color: #f4f8ff; }
+  .pick .name { font-family: 'Jua', sans-serif; font-size: 17px; }
+  .pick .owner { font-size: 13px; margin-top: 4px; min-height: 18px; color: var(--muted); word-break: break-all; }
+  .pick.taken .owner, .pick.mine .owner { color: var(--ink); font-weight: bold; }
+  .pick .tag {
+    position: absolute; right: 8px; top: 8px; font-family: 'Jua', sans-serif; font-size: 12px;
+    padding: 2px 7px; border-radius: 8px; background: #e6f8ee; color: #1d7a45;
+  }
+  .pick.taken .tag { background: #e4e6ee; color: #6a6f88; }
+  .pick.mine .tag { background: #ffcb05; color: #5a4300; }
+  .pick .cancel { margin-top: 6px; }
+
+  aside { display: flex; flex-direction: column; gap: 18px; }
+  .guide ol { margin: 0; padding-left: 20px; line-height: 1.7; font-size: 14px; }
+  .history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .history li { background: #f6f8fd; border-radius: 12px; padding: 8px 10px; font-size: 14px; }
+  .history li b { font-family: 'Jua', sans-serif; font-weight: normal; }
+  .history .empty { color: var(--muted); background: transparent; padding: 0; }
+
+  /* Modals */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(30, 34, 60, .55); display: none;
+    align-items: center; justify-content: center; z-index: 50; padding: 16px;
+  }
+  .overlay.show { display: flex; }
+  .modal {
+    background: #fff; border: 4px solid var(--ink); border-radius: 22px; box-shadow: 0 8px 0 rgba(0,0,0,.25);
+    width: min(460px, 100%); padding: 22px; max-height: 92vh; overflow: auto;
+  }
+  .modal.wide { width: min(720px, 100%); }
+  .modal h3 { font-family: 'Jua', sans-serif; font-weight: normal; font-size: 26px; margin: 0 0 6px; }
+  .modal p { margin: 4px 0 14px; color: var(--muted); }
+  .input {
+    width: 100%; font-size: 17px; padding: 12px 14px; border-radius: 12px; border: 3px solid var(--ink);
+    font-family: inherit; outline: none;
+  }
+  .input:focus { border-color: var(--blue); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row.end { justify-content: flex-end; margin-top: 14px; }
+  .error { color: var(--primary-dark); min-height: 20px; font-size: 14px; margin-top: 6px; }
+
+  .admin-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 12px 0 18px; }
+  .admin-actions .btn { padding: 12px; font-size: 16px; }
+  .admin-actions .btn.full { grid-column: 1 / -1; font-size: 20px; padding: 14px; }
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .admin-table th, .admin-table td { border-bottom: 2px solid var(--line); padding: 7px 5px; text-align: left; }
+  .admin-table th { font-family: 'Jua', sans-serif; font-weight: normal; color: var(--muted); }
+  .admin-table input { width: 100%; padding: 5px 8px; border-radius: 8px; border: 2px solid var(--line); font-family: inherit; font-size: 14px; }
+  .admin-info { font-size: 14px; color: var(--muted); }
+
+  .result-banner {
+    text-align: center; padding: 18px 10px 14px; border-radius: 18px; margin-bottom: 14px; position: relative;
+    background: repeating-linear-gradient(45deg, #fff3b0 0 18px, #ffe680 18px 36px); border: 3px solid var(--ink);
+  }
+  .result-banner .label { font-family: 'Jua', sans-serif; font-size: 18px; color: #8a6a00; }
+  .result-banner .winner-runner { font-family: 'Jua', sans-serif; font-size: 34px; margin: 4px 0; }
+  .result-banner .winner-player { font-family: 'Jua', sans-serif; font-size: 42px; color: var(--primary-dark); word-break: break-all; }
+  .result-banner .winner-player.none { font-size: 26px; color: var(--muted); }
+  .result-banner .thumb { width: 92px; height: 92px; font-size: 40px; }
+  .rank-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .rank-table th, .rank-table td { padding: 7px 8px; border-bottom: 2px solid var(--line); text-align: left; }
+  .rank-table th { font-family: 'Jua', sans-serif; font-weight: normal; color: var(--muted); }
+  .rank-table td.rk { font-family: 'Jua', sans-serif; font-size: 18px; width: 54px; }
+  .rank-table tr.r1 td { background: #fff7cf; }
+  .rank-table tr.mine td { outline: 2px solid #e0a800; outline-offset: -2px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(30px); opacity: 0;
+    background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 14px; font-size: 15px;
+    transition: all .25s; z-index: 80; pointer-events: none; max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .conn {
+    position: fixed; top: 0; left: 0; right: 0; background: #ff5c5c; color: #fff; text-align: center;
+    font-family: 'Jua', sans-serif; padding: 6px; z-index: 90; display: none;
+  }
+  .conn.show { display: block; }
+  .setup {
+    max-width: 760px; margin: 30px auto; background: #fff; border: 3px solid var(--ink); border-radius: 18px;
+    padding: 20px 24px; box-shadow: var(--shadow); line-height: 1.7; display: none;
+  }
+  .setup.show { display: block; }
+  .setup h3 { font-family: 'Jua', sans-serif; font-weight: normal; font-size: 24px; margin: 0 0 8px; }
+  .setup code { background: #f1f3f9; padding: 1px 6px; border-radius: 6px; }
+  #loginOverlay { z-index: 55; }
+  #adminOverlay { z-index: 60; }
+  .admin-mode { font-family: 'Jua', sans-serif; font-size: 13px; background: #2b2d42; color: #fff; padding: 4px 10px; border-radius: 999px; }
+</style>
+</head>
+<body>
+<div class="conn" id="connBar">서버와 연결이 끊어졌습니다. 다시 연결하는 중...</div>
+
+<header>
+  <div class="logo"><div class="ball"></div>포켓 더비</div>
+  <span class="chip" id="roundChip">라운드 1</span>
+  <span class="chip phase-waiting" id="phaseChip">연결 중</span>
+  <span class="chip" id="onlineChip">접속 0명</span>
+  <div class="spacer"></div>
+  <span class="admin-mode" id="adminBadge" style="display:none">관리자 모드</span>
+  <div class="me" id="meBox" style="display:none">
+    <span>닉네임</span><b id="meNick"></b>
+    <button class="btn small ghost" id="logoutBtn">나가기</button>
+  </div>
+  <button class="btn small" id="joinBtn" style="display:none">닉네임 입력</button>
+  <button class="btn yellow" id="adminBtn">관리자</button>
+</header>
+
+<div class="setup" id="setupBox">
+  <h3>Firebase 설정이 필요합니다</h3>
+  <div>저장소의 <code>config.js</code> 파일에 Firebase 웹 앱 설정값과 관리자 이메일을 입력한 뒤 다시 업로드해 주세요.
+  자세한 순서는 저장소의 <code>README.md</code> 에 있습니다.</div>
+  <div style="margin-top:8px;color:var(--muted);font-size:14px" id="setupDetail"></div>
+</div>
+
+<main>
+  <section style="display:flex;flex-direction:column;gap:18px;min-width:0">
+    <div class="card stage">
+      <canvas id="track" width="1200" height="640"></canvas>
+      <div class="status-bar">
+        <span class="msg" id="statusMsg">연결하는 중...</span>
+        <div class="spacer"></div>
+        <div class="live-rank" id="liveRank"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>출전 포켓몬 선점하기 <span style="font-size:15px;color:var(--muted)" id="pickCount">(0 / 8)</span></h2>
+      <div class="pick-grid" id="pickGrid"></div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="card guide">
+      <h2>참여 방법</h2>
+      <ol>
+        <li>디스코드 닉네임으로 입장합니다.</li>
+        <li>1번부터 8번 중 비어 있는 포켓몬 1마리를 선점합니다. 한 사람당 1마리, 먼저 고른 사람이 임자입니다.</li>
+        <li>관리자가 레이스를 시작하면 3, 2, 1 카운트다운 후 출발합니다.</li>
+        <li>1등으로 들어온 포켓몬을 선점한 플레이어가 우승자입니다.</li>
+      </ol>
+      <p style="font-size:13px;color:var(--muted);margin:10px 0 0">모든 주자는 같은 규칙과 같은 확률로 달립니다. 누구나 1등을 할 수 있어요.</p>
+    </div>
+    <div class="card">
+      <h2>최근 우승 기록</h2>
+      <ul class="history" id="historyList"><li class="empty">아직 기록이 없습니다.</li></ul>
+    </div>
+  </aside>
+</main>
+
+<!-- Login modal -->
+<div class="overlay" id="loginOverlay">
+  <div class="modal">
+    <h3>포켓 더비 입장</h3>
+    <p>디스코드 닉네임을 입력해 주세요. 우승자 발표에 이 닉네임이 사용됩니다.</p>
+    <form id="loginForm">
+      <input class="input" id="nickInput" maxlength="20" placeholder="예: 지우" autocomplete="off">
+      <div class="error" id="loginError"></div>
+      <div class="row end">
+        <button class="btn ghost small" type="button" id="loginAdmin" style="margin-right:auto">관리자 로그인</button>
+        <button class="btn ghost" type="button" id="loginCancel" style="display:none">닫기</button>
+        <button class="btn primary" type="submit" id="loginSubmit">입장하기</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Admin modal -->
+<div class="overlay" id="adminOverlay">
+  <div class="modal wide">
+    <div class="row" style="justify-content:space-between">
+      <h3>관리자 패널</h3>
+      <button class="btn small ghost" id="adminClose">닫기</button>
+    </div>
+    <div id="adminLogin">
+      <p>Firebase에 등록한 관리자 계정으로 로그인하세요. (관리자는 참가자와 다른 브라우저나 시크릿 창을 쓰는 것을 권장합니다)</p>
+      <form id="adminForm">
+        <input class="input" type="email" id="adminEmail" placeholder="관리자 이메일" autocomplete="username" style="margin-bottom:8px">
+        <input class="input" type="password" id="adminPw" placeholder="관리자 비밀번호" autocomplete="current-password">
+        <div class="error" id="adminError"></div>
+        <div class="row end"><button class="btn blue" type="submit">로그인</button></div>
+      </form>
+    </div>
+    <div id="adminPanel" style="display:none">
+      <div class="admin-info" id="adminInfo"></div>
+      <div class="admin-actions">
+        <button class="btn primary full" id="aStart">레이스 시작</button>
+        <button class="btn" id="aResetPicks">선택 초기화</button>
+        <button class="btn green" id="aNewRound">새 라운드 준비</button>
+        <button class="btn ghost" id="aAbort">진행 중 레이스 중단</button>
+        <button class="btn ghost" id="aClearNicks">닉네임 전체 초기화</button>
+        <button class="btn ghost" id="aLogout">관리자 로그아웃</button>
+      </div>
+      <table class="admin-table">
+        <thead><tr><th style="width:44px">번호</th><th>포켓몬 이름</th><th style="width:60px"></th><th>선점자</th><th style="width:60px"></th></tr></thead>
+        <tbody id="adminRows"></tbody>
+      </table>
+      <p style="font-size:13px;margin-top:12px">주자 이미지는 저장소의 runners/runner1.png ~ runner8.png 파일을 올리면 됩니다. (반영 후 새로고침)</p>
+    </div>
+  </div>
+</div>
+
+<!-- Result modal -->
+<div class="overlay" id="resultOverlay">
+  <div class="modal wide">
+    <div class="result-banner">
+      <div class="label" id="resLabel">라운드 1 우승</div>
+      <div class="thumb" id="resThumb" style="margin:8px auto"></div>
+      <div class="winner-runner" id="resRunner"></div>
+      <div class="winner-player" id="resPlayer"></div>
+    </div>
+    <table class="rank-table">
+      <thead><tr><th>순위</th><th>포켓몬</th><th>선점 플레이어</th><th>기록</th></tr></thead>
+      <tbody id="resRows"></tbody>
+    </table>
+    <div class="row end"><button class="btn primary" id="resClose">확인</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { firebaseConfig, ADMIN_EMAIL } from './config.js';
+
+// ================================================================
+// Constants
+// ================================================================
+const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const LANES = 8;
+const TRACK_LENGTH = 1000;
+const TICK_MS = 100;
+const COUNTDOWN_MS = 3600;      // 3,2,1 + small buffer for network propagation
+const MAX_TICKS = 1500;
+const DEFAULT_NAMES = ['피카츄', '이브이', '파이리', '꼬부기', '이상해씨', '푸린', '나옹', '고라파덕'];
+const LANE_COLORS = ['#FFD23F', '#FF9F68', '#FF6B6B', '#5DADEC', '#7BD389', '#FF9EC7', '#B79CFF', '#4FD1C5'];
+const LANE_DARK   = ['#C99A00', '#D9692E', '#C93C3C', '#2F7EBF', '#3F9A55', '#D25E92', '#7B5CD6', '#239A90'];
+const PHASE_TEXT = { connecting: '연결 중', waiting: '선점 대기 중', countdown: '카운트다운', racing: '레이스 진행 중', finished: '결과 발표' };
+
+const $ = (id) => document.getElementById(id);
+
+// ================================================================
+// Shared state (mirrors Firebase)
+// ================================================================
+const S = {
+  ready: false,
+  uid: null,
+  email: null,
+  isAdmin: false,
+  me: null,              // { nick }
+  room: { round: 1, race: null },
+  picks: {},             // { "1": {uid, nick} }
+  names: DEFAULT_NAMES.slice(),
+  history: {},
+  online: 0,
+  offset: 0,
+  connected: true,
+  parsedRaceId: null,
+  parsed: null,
+  phase: 'connecting',
+  shownResultId: null,
+  goUntil: 0,
+  countdownShown: 0,
+  countdownChangedAt: 0,
+};
+
+let fb = null; // firebase function bag
+let db = null;
+let auth = null;
+
+function serverNow() { return Date.now() + S.offset; }
+
+// ================================================================
+// Runner images (runners/runnerN.png) with fallback
+// ================================================================
+const runnerImgs = [];
+for (let i = 0; i < LANES; i++) {
+  const entry = { img: new Image(), ok: false };
+  entry.img.onload = () => { if (entry.img.naturalWidth > 0) { entry.ok = true; renderPicks(); } };
+  entry.img.onerror = () => { entry.ok = false; };
+  entry.img.src = 'runners/runner' + (i + 1) + '.png';
+  runnerImgs.push(entry);
+}
+
+// ================================================================
+// Fair race simulation (run once in the admin browser at start time)
+// All 8 runners use identical rules and identical random distributions.
+// ================================================================
+function rand() {
+  const a = new Uint32Array(2);
+  crypto.getRandomValues(a);
+  return (a[0] * 2097152 + (a[1] >>> 11)) / 9007199254740992;
+}
+function randRange(a, b) { return a + rand() * (b - a); }
+function randInt(a, b) { return a + Math.floor(rand() * (b - a + 1)); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function stepRunner(r) {
+  r.pace += randRange(-0.35, 0.35);
+  r.pace += (5.0 - r.pace) * 0.04;
+  r.pace = clamp(r.pace, 3.6, 6.4);
+  if (r.fxLeft > 0) {
+    r.fxLeft--;
+    if (r.fxLeft === 0) { r.fxMode = 0; r.fxMult = 1; }
+  } else {
+    const roll = rand();
+    if (roll < 0.035) { r.fxMode = 1; r.fxLeft = randInt(6, 16); r.fxMult = randRange(1.35, 1.75); }
+    else if (roll < 0.055) { r.fxMode = 2; r.fxLeft = randInt(3, 7); r.fxMult = randRange(0.45, 0.7); }
+  }
+  return Math.max(0.5, r.pace * r.fxMult + randRange(-0.6, 0.6));
+}
+
+function simulateRace() {
+  const rs = [];
+  for (let i = 0; i < LANES; i++) rs.push({ pos: 0, pace: randRange(4.4, 5.6), fxMode: 0, fxLeft: 0, fxMult: 1, done: false, time: null, tie: rand() });
+  const frames = [rs.map(() => 0).join(',')];
+  const fx = ['00000000'];
+  let tick = 0;
+  while (rs.some((r) => !r.done) && tick < MAX_TICKS) {
+    tick++;
+    rs.forEach((r) => {
+      if (r.done) return;
+      const sp = stepRunner(r);
+      const before = r.pos;
+      r.pos += sp;
+      if (r.pos >= TRACK_LENGTH) {
+        r.time = (tick - 1 + (TRACK_LENGTH - before) / sp) * TICK_MS / 1000; // exact crossing time
+        r.pos = TRACK_LENGTH; r.done = true; r.fxMode = 0;
+      }
+    });
+    frames.push(rs.map((r) => (Math.round(r.pos * 10) / 10)).join(','));
+    fx.push(rs.map((r) => r.fxMode).join(''));
+  }
+  // anything not finished by the safety limit gets ranked by distance
+  rs.forEach((r) => { if (!r.done) r.time = MAX_TICKS * TICK_MS / 1000 + (TRACK_LENGTH - r.pos) / 100; });
+  const order = rs.map((r, i) => i).sort((a, b) => (rs[a].time - rs[b].time) || (rs[a].tie - rs[b].tie));
+  const times = rs.map((r) => Math.round(r.time * 1000) / 1000);
+  const endMs = Math.ceil(Math.max(...times) * 1000) + 400;
+  return { frames, fx, times, order, endMs };
+}
+
+// ================================================================
+// Derived race phase from server time
+// ================================================================
+function currentRace() { return S.room && S.room.race ? S.room.race : null; }
+
+function phaseInfo() {
+  if (!S.ready) return { phase: 'connecting' };
+  const r = currentRace();
+  if (!r || typeof r.createdAt !== 'number') return { phase: 'waiting' };
+  const start = r.createdAt + r.countdownMs;
+  const t = serverNow();
+  if (t < start) return { phase: 'countdown', countdown: Math.max(1, Math.min(3, Math.ceil((start - t - 600) / 1000))) };
+  const el = t - start;
+  if (el < r.endMs) return { phase: 'racing', elapsed: el };
+  return { phase: 'finished', elapsed: el };
+}
+
+function parsedRace() {
+  const r = currentRace();
+  if (!r) return null;
+  if (S.parsedRaceId !== r.id) {
+    const frames = toArray(r.frames).map((s) => String(s).split(',').map(Number));
+    const fx = toArray(r.fx).map((s) => String(s).split('').map(Number));
+    S.parsed = { frames, fx, times: toArray(r.times).map(Number), order: toArray(r.order).map(Number) };
+    S.parsedRaceId = r.id;
+  }
+  return S.parsed;
+}
+
+function toArray(v) {
+  if (Array.isArray(v)) return v;
+  if (v && typeof v === 'object') return Object.keys(v).sort((a, b) => a - b).map((k) => v[k]);
+  return [];
+}
+
+// positions, speeds, fx and finish order at the given elapsed race time
+function raceSnapshot(info) {
+  const p = parsedRace();
+  const zero = new Array(LANES).fill(0);
+  if (!p || info.phase === 'waiting' || info.phase === 'countdown' || info.phase === 'connecting') {
+    return { pos: zero.slice(), speed: zero.slice(), fx: zero.slice(), order: [] };
+  }
+  const last = p.frames.length - 1;
+  const el = info.phase === 'finished' ? Infinity : info.elapsed;
+  const f = el / TICK_MS;
+  const i = Math.min(last, Math.floor(f));
+  const j = Math.min(last, i + 1);
+  const k = i === j ? 0 : f - i;
+  const pos = [], speed = [];
+  for (let l = 0; l < LANES; l++) {
+    const a = p.frames[i][l], b = p.frames[j][l];
+    pos.push(a + (b - a) * k);
+    speed.push(i === j ? 0 : b - a);
+  }
+  const fx = (p.fx[j] || zero).slice();
+  const order = p.order.filter((l) => p.times[l] * 1000 <= el);
+  return { pos, speed, fx, order };
+}
+
+// ================================================================
+// Helpers
+// ================================================================
+function myLane() {
+  if (!S.uid) return -1;
+  for (let l = 1; l <= LANES; l++) {
+    const p = S.picks[l];
+    if (p && p.uid === S.uid) return l - 1;
+  }
+  return -1;
+}
+function pickOf(i) { return S.picks[i + 1] || null; }
+function takenCount() { let n = 0; for (let l = 1; l <= LANES; l++) if (S.picks[l]) n++; return n; }
+
+function nickKey(nick) {
+  return encodeURIComponent(nick.toLowerCase()).replace(/\./g, '%2E');
+}
+function cleanText(s, max) {
+  return String(s || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+function errText(e) {
+  const code = (e && (e.code || e.message)) || '';
+  if (/permission/i.test(code)) return 'PERMISSION';
+  return code;
+}
+
+let toastTimer = null;
+function toast(text) {
+  const t = $('toast'); t.textContent = text; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ================================================================
+// Firebase bootstrap
+// ================================================================
+async function boot() {
+  const configured = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.databaseURL;
+  if (!configured) {
+    $('setupBox').classList.add('show');
+    $('setupDetail').textContent = 'config.js 의 apiKey 또는 databaseURL 이 비어 있습니다.';
+    $('statusMsg').textContent = 'Firebase 설정이 필요합니다.';
+    renderAll();
+    return;
+  }
+  try {
+    const [appMod, authMod, dbMod] = await Promise.all([
+      import(SDK + 'firebase-app.js'),
+      import(SDK + 'firebase-auth.js'),
+      import(SDK + 'firebase-database.js'),
+    ]);
+    fb = { ...authMod, ...dbMod };
+    const app = appMod.initializeApp(firebaseConfig);
+    auth = authMod.getAuth(app);
+    db = dbMod.getDatabase(app);
+  } catch (e) {
+    console.error(e);
+    $('setupBox').classList.add('show');
+    $('setupDetail').textContent = 'Firebase 초기화 실패: ' + (e && e.message ? e.message : e);
+    return;
+  }
+
+  subscribeShared();
+
+  fb.onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      S.uid = null; S.email = null; S.isAdmin = false; S.me = null;
+      fb.signInAnonymously(auth).catch((e) => {
+        console.error(e);
+        $('setupBox').classList.add('show');
+        $('setupDetail').textContent = '익명 로그인 실패: Firebase Authentication 에서 "익명" 로그인을 사용 설정했는지 확인하세요. (' + (e.code || e.message) + ')';
+      });
+      renderAll();
+      return;
+    }
+    S.uid = user.uid;
+    S.email = user.email || null;
+    S.isAdmin = !!user.email && user.email.toLowerCase() === String(ADMIN_EMAIL).toLowerCase();
+    subscribeMe();
+    setupPresence();
+    renderAll();
+  });
+}
+
+function subscribeShared() {
+  const { ref, onValue } = fb;
+  onValue(ref(db, '.info/serverTimeOffset'), (s) => { S.offset = s.val() || 0; });
+  onValue(ref(db, '.info/connected'), (s) => {
+    S.connected = s.val() === true;
+    $('connBar').classList.toggle('show', S.ready && !S.connected);
+  });
+  onValue(ref(db, 'room'), (s) => {
+    const v = s.val() || {};
+    S.room = { round: v.round || 1, race: v.race || null };
+    S.ready = true;
+    renderAll();
+  }, onReadError);
+  onValue(ref(db, 'picks'), (s) => { S.picks = s.val() || {}; renderAll(); }, onReadError);
+  onValue(ref(db, 'config/names'), (s) => {
+    const v = s.val() || {};
+    S.names = DEFAULT_NAMES.map((d, i) => (v[i + 1] ? String(v[i + 1]) : d));
+    renderAll();
+  }, onReadError);
+  onValue(ref(db, 'history'), (s) => { S.history = s.val() || {}; renderHistory(); }, onReadError);
+  onValue(ref(db, 'presence'), (s) => { S.online = Object.keys(s.val() || {}).length; renderHeader(); renderAdmin(); }, onReadError);
+}
+
+function onReadError(e) {
+  console.error(e);
+  $('setupBox').classList.add('show');
+  $('setupDetail').textContent = '데이터 읽기 실패: Realtime Database 를 만들고 database.rules.json 규칙을 게시했는지 확인하세요. (' + (e.code || e.message) + ')';
+}
+
+let meUnsub = null;
+function subscribeMe() {
+  if (meUnsub) { meUnsub(); meUnsub = null; }
+  const uid = S.uid;
+  meUnsub = fb.onValue(fb.ref(db, 'users/' + uid), (s) => {
+    if (uid !== S.uid) return;
+    const v = s.val();
+    S.me = v && v.nick ? { nick: v.nick } : null;
+    renderAll();
+    if (!S.me && !S.isAdmin) showLogin(false); else if (S.me) hideLogin();
+  });
+}
+
+let presenceUid = null;
+function setupPresence() {
+  if (presenceUid === S.uid) return;
+  if (presenceUid) fb.remove(fb.ref(db, 'presence/' + presenceUid)).catch(() => {});
+  presenceUid = S.uid;
+  const r = fb.ref(db, 'presence/' + S.uid);
+  fb.onDisconnect(r).remove();
+  fb.set(r, true).catch(() => {});
+}
+
+// ================================================================
+// Player actions
+// ================================================================
+async function doLogin(nickRaw) {
+  const nick = cleanText(nickRaw, 20);
+  if (!nick) { $('loginError').textContent = '닉네임을 입력해 주세요.'; return; }
+  if (!S.uid) { $('loginError').textContent = '아직 서버에 연결 중입니다. 잠시 후 다시 시도해 주세요.'; return; }
+  $('loginSubmit').disabled = true;
+  try {
+    const upd = {};
+    upd['nicks/' + nickKey(nick)] = S.uid;
+    upd['users/' + S.uid] = { nick, at: fb.serverTimestamp() };
+    await fb.update(fb.ref(db), upd);
+    toast(nick + '님, 환영합니다!');
+    hideLogin();
+  } catch (e) {
+    $('loginError').textContent = errText(e) === 'PERMISSION' ? '이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해 주세요.' : '입장 실패: ' + errText(e);
+  } finally {
+    $('loginSubmit').disabled = false;
+  }
+}
+
+async function doLogout() {
+  if (!S.me) return;
+  if (currentRace()) { toast('레이스 진행 중이거나 결과 발표 중에는 나갈 수 없습니다.'); return; }
+  const upd = {};
+  const lane = myLane();
+  if (lane >= 0) { upd['picks/' + (lane + 1)] = null; upd['userPick/' + S.uid] = null; }
+  upd['nicks/' + nickKey(S.me.nick)] = null;
+  upd['users/' + S.uid] = null;
+  try { await fb.update(fb.ref(db), upd); } catch (e) { toast('나가기 실패: ' + errText(e)); }
+}
+
+async function doPick(lane1) {
+  if (!S.me) { showLogin(true); return; }
+  if (S.phase !== 'waiting') { toast('지금은 말을 선택할 수 없습니다.'); return; }
+  const prev = myLane();
+  if (prev === lane1 - 1) return;
+  const upd = {};
+  if (prev >= 0) upd['picks/' + (prev + 1)] = null;
+  upd['picks/' + lane1] = { uid: S.uid, nick: S.me.nick, at: fb.serverTimestamp() };
+  upd['userPick/' + S.uid] = String(lane1);
+  try {
+    await fb.update(fb.ref(db), upd);
+  } catch (e) {
+    toast(errText(e) === 'PERMISSION' ? lane1 + '번은 이미 다른 플레이어가 선점했습니다.' : '선택 실패: ' + errText(e));
+  }
+}
+
+async function doUnpick() {
+  const lane = myLane();
+  if (lane < 0) return;
+  const upd = {};
+  upd['picks/' + (lane + 1)] = null;
+  upd['userPick/' + S.uid] = null;
+  try { await fb.update(fb.ref(db), upd); } catch (e) { toast('취소 실패: ' + errText(e)); }
+}
+
+// ================================================================
+// Admin actions
+// ================================================================
+async function adminUpdate(upd, okMsg) {
+  try { await fb.update(fb.ref(db), upd); if (okMsg) toast(okMsg); }
+  catch (e) { toast(errText(e) === 'PERMISSION' ? '권한이 없습니다. 관리자 이메일 설정(config.js, 규칙)을 확인하세요.' : '실패: ' + errText(e)); }
+}
+
+async function adminStart() {
+  if (currentRace()) { toast('이미 레이스가 있습니다. 새 라운드를 먼저 준비하세요.'); return; }
+  const taken = takenCount();
+  if (taken < LANES && !confirm('현재 ' + taken + '/8 마리만 선점되었습니다. 그래도 레이스를 시작할까요?')) return;
+  const sim = simulateRace();
+  const ranking = sim.order.map((lane, idx) => {
+    const p = pickOf(lane);
+    return { rank: idx + 1, lane: lane + 1, name: S.names[lane], nick: p ? p.nick : '', time: sim.times[lane] };
+  });
+  const histKey = fb.push(fb.ref(db, 'history')).key;
+  const raceId = histKey;
+  const race = {
+    id: raceId,
+    round: S.room.round,
+    createdAt: fb.serverTimestamp(),
+    countdownMs: COUNTDOWN_MS,
+    tickMs: TICK_MS,
+    endMs: sim.endMs,
+    frames: sim.frames,
+    fx: sim.fx,
+    times: sim.times,
+    order: sim.order,
+    ranking,
+    historyKey: histKey,
+  };
+  const upd = {};
+  upd['room/race'] = race;
+  upd['room/round'] = S.room.round;
+  upd['history/' + histKey] = {
+    round: S.room.round,
+    createdAt: fb.serverTimestamp(),
+    revealMs: COUNTDOWN_MS + sim.endMs,
+    winner: ranking[0],
+  };
+  await adminUpdate(upd);
+  $('adminOverlay').classList.remove('show');
+}
+
+function adminAbort() {
+  const r = currentRace();
+  if (!r) { toast('진행 중인 레이스가 없습니다.'); return; }
+  if (!confirm('레이스를 취소하고 대기 상태로 돌아갈까요? (선점은 유지, 이 판의 기록은 삭제)')) return;
+  const upd = { 'room/race': null };
+  if (r.historyKey) upd['history/' + r.historyKey] = null;
+  adminUpdate(upd, '레이스를 취소했습니다.');
+}
+
+function adminResetPicks() {
+  if (!confirm('모든 말 선점 상태를 초기화할까요?')) return;
+  adminUpdate({ picks: null, userPick: null }, '선점을 초기화했습니다.');
+}
+
+function adminNewRound() {
+  if (S.phase === 'countdown' || S.phase === 'racing') { toast('레이스 진행 중에는 새 라운드를 준비할 수 없습니다.'); return; }
+  if (!confirm('새 라운드를 준비할까요? (선점 초기화 + 대기 상태로 전환)')) return;
+  const next = currentRace() ? S.room.round + 1 : S.room.round;
+  adminUpdate({ 'room/race': null, 'room/round': next, picks: null, userPick: null }, '라운드 ' + next + ' 준비 완료');
+}
+
+function adminClearNicks() {
+  if (currentRace()) { toast('먼저 새 라운드를 준비한 뒤 실행하세요.'); return; }
+  if (!confirm('등록된 모든 닉네임과 선점을 삭제할까요? 참가자들은 닉네임을 다시 입력해야 합니다.')) return;
+  adminUpdate({ nicks: null, users: null, picks: null, userPick: null }, '닉네임을 모두 초기화했습니다.');
+}
+
+function adminRelease(lane1) {
+  const p = S.picks[lane1];
+  if (!p) return;
+  const upd = {};
+  upd['picks/' + lane1] = null;
+  upd['userPick/' + p.uid] = null;
+  adminUpdate(upd);
+}
+
+function adminRename(lane1, name) {
+  const n = cleanText(name, 16);
+  if (!n) { toast('이름을 입력해 주세요.'); return; }
+  adminUpdate({ ['config/names/' + lane1]: n }, lane1 + '번 이름을 변경했습니다.');
+}
+
+async function adminLogin(email, pw) {
+  $('adminError').textContent = '';
+  try {
+    await fb.signInWithEmailAndPassword(auth, email, pw);
+    if (email.toLowerCase() !== String(ADMIN_EMAIL).toLowerCase()) {
+      $('adminError').textContent = '로그인은 되었지만 config.js 의 ADMIN_EMAIL 과 다른 계정입니다.';
+    }
+  } catch (e) {
+    $('adminError').textContent = '로그인 실패: 이메일 또는 비밀번호를 확인하세요. (' + (e.code || e.message) + ')';
+  }
+}
+
+async function adminLogout() {
+  try { await fb.signOut(auth); } catch (e) { /* ignore */ }
+  $('adminPw').value = '';
+  $('adminOverlay').classList.remove('show');
+}
+
+// ================================================================
+// DOM rendering
+// ================================================================
+function renderAll() {
+  S.phase = phaseInfo().phase;
+  renderHeader(); renderPicks(); renderAdmin(); renderStatus(); renderHistory();
+}
+
+function renderHeader() {
+  $('roundChip').textContent = '라운드 ' + (S.room ? S.room.round : 1);
+  const pc = $('phaseChip');
+  pc.className = 'chip phase-' + (S.phase === 'connecting' ? 'waiting' : S.phase);
+  pc.textContent = PHASE_TEXT[S.phase] || S.phase;
+  $('onlineChip').textContent = '접속 ' + S.online + '명';
+  $('adminBadge').style.display = S.isAdmin ? 'inline-block' : 'none';
+  if (S.me) { $('meBox').style.display = 'flex'; $('meNick').textContent = S.me.nick; }
+  else { $('meBox').style.display = 'none'; }
+  $('joinBtn').style.display = !S.me && S.isAdmin ? 'inline-block' : 'none';
+}
+
+function fillThumb(el, idx) {
+  const entry = runnerImgs[idx];
+  el.textContent = '';
+  if (entry && entry.ok) {
+    el.classList.add('has-img');
+    el.style.backgroundImage = 'url(' + entry.img.src + ')';
+    el.style.backgroundColor = '';
+  } else {
+    el.classList.remove('has-img');
+    el.style.backgroundImage = '';
+    el.style.backgroundColor = LANE_COLORS[idx];
+    el.textContent = String(idx + 1);
+  }
+}
+
+function renderPicks() {
+  const grid = $('pickGrid');
+  if (!grid) return;
+  const mine = myLane();
+  const waiting = S.phase === 'waiting';
+  grid.innerHTML = '';
+  for (let idx = 0; idx < LANES; idx++) {
+    const lane1 = idx + 1;
+    const p = pickOf(idx);
+    const isMine = idx === mine;
+    const card = document.createElement('div');
+    card.className = 'pick';
+    if (isMine) card.classList.add('mine');
+    else if (p) card.classList.add('taken');
+    else if (waiting) card.classList.add('available');
+    else card.classList.add('locked');
+
+    const num = document.createElement('div');
+    num.className = 'num'; num.textContent = lane1; num.style.background = LANE_COLORS[idx];
+    const tag = document.createElement('div');
+    tag.className = 'tag'; tag.textContent = isMine ? '내 선택' : (p ? '선점됨' : (waiting ? '선택 가능' : '빈자리'));
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb'; fillThumb(thumb, idx);
+    const name = document.createElement('div');
+    name.className = 'name'; name.textContent = lane1 + '번 ' + S.names[idx];
+    const owner = document.createElement('div');
+    owner.className = 'owner'; owner.textContent = p ? p.nick : (waiting ? '클릭해서 선점하기' : '-');
+    card.append(num, tag, thumb, name, owner);
+
+    if (isMine && waiting) {
+      const c = document.createElement('button');
+      c.className = 'btn small ghost cancel'; c.textContent = '선택 취소';
+      c.addEventListener('click', (e) => { e.stopPropagation(); doUnpick(); });
+      card.appendChild(c);
+    }
+    if (!p && waiting) card.addEventListener('click', () => doPick(lane1));
+    grid.appendChild(card);
+  }
+  $('pickCount').textContent = '(' + takenCount() + ' / ' + LANES + ')';
+}
+
+function renderHistory() {
+  const ul = $('historyList');
+  const now = serverNow();
+  const list = Object.keys(S.history).map((k) => S.history[k])
+    .filter((h) => h && typeof h.createdAt === 'number' && now >= h.createdAt + (h.revealMs || 0) && h.winner)
+    .sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
+  ul.innerHTML = '';
+  if (!list.length) {
+    const li0 = document.createElement('li'); li0.className = 'empty'; li0.textContent = '아직 기록이 없습니다.'; ul.appendChild(li0); return;
+  }
+  list.forEach((h) => {
+    const li = document.createElement('li');
+    const b = document.createElement('b'); b.textContent = '라운드 ' + h.round + ' - ' + h.winner.lane + '번 ' + h.winner.name;
+    const d = document.createElement('div'); d.textContent = '우승자: ' + (h.winner.nick || '선점자 없음');
+    li.append(b, d); ul.appendChild(li);
+  });
+}
+
+function renderStatus() {
+  const el = $('statusMsg');
+  const info = phaseInfo();
+  const mine = myLane();
+  const taken = takenCount();
+  if (info.phase === 'connecting') el.textContent = '연결하는 중...';
+  else if (info.phase === 'waiting') {
+    if (!S.me) el.textContent = S.isAdmin ? '관리자 모드입니다. 참가하려면 닉네임을 입력하세요.' : '닉네임을 입력하고 입장해 주세요.';
+    else if (mine < 0) el.textContent = '아래에서 응원할 포켓몬을 선점하세요! (' + taken + '/8 선점됨)';
+    else el.textContent = (mine + 1) + '번 ' + S.names[mine] + ' 선점 완료! 관리자의 시작을 기다리는 중... (' + taken + '/8)';
+  } else if (info.phase === 'countdown') {
+    el.textContent = '곧 출발합니다! ' + info.countdown;
+  } else if (info.phase === 'racing') {
+    el.textContent = mine >= 0 ? ((mine + 1) + '번 ' + S.names[mine] + ' 힘내라!') : '레이스 진행 중!';
+  } else if (info.phase === 'finished') {
+    const r = currentRace();
+    const w = r && toArray(r.ranking)[0];
+    if (w) el.textContent = '우승: ' + w.lane + '번 ' + w.name + ' / ' + (w.nick ? w.nick + '님 축하합니다!' : '선점자 없음');
+  }
+}
+
+function renderLiveRank(snap) {
+  const box = $('liveRank');
+  box.innerHTML = '';
+  if (S.phase !== 'racing' && S.phase !== 'finished') return;
+  const fin = snap.order;
+  const rest = [];
+  for (let l = 0; l < LANES; l++) if (fin.indexOf(l) < 0) rest.push(l);
+  rest.sort((a, b) => snap.pos[b] - snap.pos[a]);
+  fin.concat(rest).forEach((l, k) => {
+    const s = document.createElement('span');
+    s.style.background = LANE_COLORS[l];
+    s.textContent = (k + 1) + '위 ' + (l + 1) + '번';
+    box.appendChild(s);
+  });
+}
+
+function renderAdmin() {
+  $('adminLogin').style.display = S.isAdmin ? 'none' : 'block';
+  $('adminPanel').style.display = S.isAdmin ? 'block' : 'none';
+  if (!S.isAdmin) return;
+  $('adminInfo').textContent = '라운드 ' + S.room.round + ' / 상태: ' + (PHASE_TEXT[S.phase] || S.phase) + ' / 선점 ' + takenCount() + '/8 / 접속자 ' + S.online + '명';
+  const busy = S.phase === 'countdown' || S.phase === 'racing';
+  $('aStart').disabled = S.phase !== 'waiting';
+  $('aResetPicks').disabled = S.phase !== 'waiting';
+  $('aNewRound').disabled = busy;
+  $('aAbort').disabled = !busy;
+  $('aClearNicks').disabled = S.phase !== 'waiting';
+
+  const active = document.activeElement;
+  if (active && active.dataset && active.dataset.renameLane) return; // keep input while typing
+  const tbody = $('adminRows');
+  tbody.innerHTML = '';
+  for (let idx = 0; idx < LANES; idx++) {
+    const lane1 = idx + 1;
+    const p = pickOf(idx);
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td'); td1.textContent = lane1 + '번';
+    td1.style.fontFamily = 'Jua, sans-serif'; td1.style.color = LANE_DARK[idx];
+    const td2 = document.createElement('td');
+    const inp = document.createElement('input'); inp.value = S.names[idx]; inp.maxLength = 16; inp.dataset.renameLane = lane1;
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { adminRename(lane1, inp.value); inp.blur(); } });
+    td2.appendChild(inp);
+    const td3 = document.createElement('td');
+    const rb = document.createElement('button'); rb.className = 'btn small'; rb.textContent = '변경';
+    rb.addEventListener('click', () => adminRename(lane1, inp.value));
+    td3.appendChild(rb);
+    const td4 = document.createElement('td'); td4.textContent = p ? p.nick : '-';
+    const td5 = document.createElement('td');
+    if (p) {
+      const xb = document.createElement('button'); xb.className = 'btn small ghost'; xb.textContent = '해제'; xb.disabled = S.phase !== 'waiting';
+      xb.addEventListener('click', () => adminRelease(lane1));
+      td5.appendChild(xb);
+    }
+    tr.append(td1, td2, td3, td4, td5);
+    tbody.appendChild(tr);
+  }
+}
+
+function showResult() {
+  const r = currentRace();
+  if (!r) return;
+  const ranking = toArray(r.ranking);
+  const w = ranking[0];
+  $('resLabel').textContent = '라운드 ' + r.round + ' 우승';
+  fillThumb($('resThumb'), w.lane - 1);
+  $('resRunner').textContent = w.lane + '번 ' + w.name;
+  const pl = $('resPlayer');
+  if (w.nick) { pl.className = 'winner-player'; pl.textContent = w.nick + ' 님 우승!'; }
+  else { pl.className = 'winner-player none'; pl.textContent = '선점한 플레이어가 없습니다'; }
+  const tb = $('resRows'); tb.innerHTML = '';
+  const mine = myLane();
+  ranking.forEach((x) => {
+    const tr = document.createElement('tr');
+    if (x.rank === 1) tr.className = 'r1';
+    if (x.lane - 1 === mine) tr.classList.add('mine');
+    const a = document.createElement('td'); a.className = 'rk'; a.textContent = x.rank + '위';
+    const b = document.createElement('td'); b.textContent = x.lane + '번 ' + x.name; b.style.color = LANE_DARK[x.lane - 1]; b.style.fontWeight = 'bold';
+    const c = document.createElement('td'); c.textContent = x.nick || '-';
+    const d = document.createElement('td'); d.textContent = typeof x.time === 'number' ? x.time.toFixed(2) + '초' : '-';
+    tr.append(a, b, c, d); tb.appendChild(tr);
+  });
+  $('resultOverlay').classList.add('show');
+}
+
+function showLogin(closable) {
+  if (!S.uid) return;
+  $('loginOverlay').classList.add('show');
+  $('loginCancel').style.display = closable || S.isAdmin ? 'inline-block' : 'none';
+  $('loginError').textContent = '';
+  setTimeout(() => $('nickInput').focus(), 50);
+}
+function hideLogin() { $('loginOverlay').classList.remove('show'); }
+
+// ================================================================
+// UI events
+// ================================================================
+$('loginForm').addEventListener('submit', (e) => { e.preventDefault(); doLogin($('nickInput').value); });
+$('loginCancel').addEventListener('click', hideLogin);
+$('loginAdmin').addEventListener('click', () => {
+  hideLogin();
+  $('adminOverlay').classList.add('show'); renderAdmin();
+  setTimeout(() => $('adminEmail').focus(), 50);
+});
+$('joinBtn').addEventListener('click', () => showLogin(true));
+$('logoutBtn').addEventListener('click', () => {
+  if (confirm('나가면 선점한 말이 해제되고 닉네임이 삭제됩니다. 나갈까요?')) doLogout();
+});
+$('adminBtn').addEventListener('click', () => {
+  $('adminOverlay').classList.add('show'); renderAdmin();
+  if (!S.isAdmin) setTimeout(() => $('adminEmail').focus(), 50);
+});
+$('adminClose').addEventListener('click', () => {
+  $('adminOverlay').classList.remove('show');
+  if (S.uid && !S.me && !S.isAdmin) showLogin(false);
+});
+$('adminForm').addEventListener('submit', (e) => { e.preventDefault(); if (fb) adminLogin($('adminEmail').value.trim(), $('adminPw').value); });
+$('aStart').addEventListener('click', adminStart);
+$('aResetPicks').addEventListener('click', adminResetPicks);
+$('aNewRound').addEventListener('click', adminNewRound);
+$('aAbort').addEventListener('click', adminAbort);
+$('aClearNicks').addEventListener('click', adminClearNicks);
+$('aLogout').addEventListener('click', adminLogout);
+$('resClose').addEventListener('click', () => $('resultOverlay').classList.remove('show'));
+
+// ================================================================
+// Phase watcher: derives phase transitions from server time
+// ================================================================
+let lastPhase = null;
+let lastRaceId = null;
+let lastLiveRank = 0;
+function watchPhase(now, snap) {
+  const info = phaseInfo();
+  const r = currentRace();
+  const raceId = r ? r.id : null;
+  if (info.phase !== lastPhase || raceId !== lastRaceId) {
+    const prev = lastPhase;
+    lastPhase = info.phase; lastRaceId = raceId;
+    S.phase = info.phase;
+    if (info.phase === 'countdown') particles.length = 0;
+    if (info.phase === 'racing' && prev === 'countdown') S.goUntil = now + 900;
+    if (info.phase === 'finished' && r && S.shownResultId !== r.id) {
+      S.shownResultId = r.id;
+      if (prev === 'racing') {
+        burstConfetti(toArray(r.order)[0]);
+        setTimeout(() => { if (S.phase === 'finished') showResult(); }, 1300);
+      } else {
+        showResult();
+      }
+    }
+    if (info.phase !== 'finished') $('resultOverlay').classList.remove('show');
+    renderAll();
+  }
+  if (info.phase === 'countdown' && info.countdown !== S.countdownShown) {
+    S.countdownShown = info.countdown; S.countdownChangedAt = now; renderStatus();
+  }
+  if (now - lastLiveRank > 250) { lastLiveRank = now; renderLiveRank(snap); }
+  return info;
+}
+
+// ================================================================
+// Canvas track rendering
+// ================================================================
+const cv = $('track');
+const ctx = cv.getContext('2d');
+const W = 1200, H = 640;
+const TRACK_TOP = 108, LANE_H = 58, TRACK_BOTTOM = TRACK_TOP + LANE_H * LANES;
+const START_X = 190, FINISH_X = 1120;
+
+function setupCanvas() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+setupCanvas();
+window.addEventListener('resize', setupCanvas);
+
+// deterministic pseudo random for static decorations
+function seeded(seed) { return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
+const sr = seeded(12345);
+const dirtSpecks = []; for (let d = 0; d < 380; d++) dirtSpecks.push({ x: START_X - 40 + sr() * (W - START_X + 40), y: TRACK_TOP + sr() * (LANE_H * LANES), r: 1 + sr() * 2.2, a: 0.08 + sr() * 0.12 });
+const crowd = []; for (let c = 0; c < 70; c++) crowd.push({ x: 20 + c * 17 + sr() * 6, row: c % 2, col: ['#ff6b6b', '#ffd23f', '#5dadec', '#7bd389', '#ff9ec7', '#b79cff', '#ff9f68', '#ffffff'][Math.floor(sr() * 8)], ph: sr() * 6.28 });
+const flowers = []; for (let f = 0; f < 26; f++) flowers.push({ x: 15 + sr() * (W - 30), y: TRACK_BOTTOM + 14 + sr() * (H - TRACK_BOTTOM - 26), c: ['#fff', '#ffd23f', '#ff9ec7'][Math.floor(sr() * 3)] });
+
+const particles = [];
+const bouncePhase = new Array(LANES).fill(0).map((_, i) => i * 0.7);
+
+function laneY(i) { return TRACK_TOP + LANE_H * i + LANE_H / 2; }
+function posToX(p) { return START_X + (FINISH_X - START_X) * Math.max(0, Math.min(1, p / TRACK_LENGTH)); }
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+function drawBackground(t) {
+  const sky = ctx.createLinearGradient(0, 0, 0, 70);
+  sky.addColorStop(0, '#9fdcff'); sky.addColorStop(1, '#d9f2ff');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, 70);
+  ctx.fillStyle = 'rgba(255,255,255,.9)';
+  [[120, 22], [520, 16], [900, 26]].forEach((cl, k) => {
+    const x = (cl[0] + t * 0.008 * (k + 1)) % (W + 120) - 60;
+    ctx.beginPath(); ctx.arc(x, cl[1], 12, 0, 6.28); ctx.arc(x + 14, cl[1] - 6, 14, 0, 6.28); ctx.arc(x + 30, cl[1], 11, 0, 6.28); ctx.fill();
+  });
+  ctx.fillStyle = '#7d8bb8'; ctx.fillRect(0, 34, W, 46);
+  ctx.fillStyle = '#6676a8'; ctx.fillRect(0, 56, W, 4);
+  crowd.forEach((p) => {
+    const hop = Math.max(0, Math.sin(t * 0.008 + p.ph)) * (S.phase === 'racing' ? 4 : 1.5);
+    const y = 48 + p.row * 18 - hop;
+    ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, y, 6, 0, 6.28); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(p.x - 3, y - 1, 1.6, 1.6); ctx.fillRect(p.x + 1.5, y - 1, 1.6, 1.6);
+  });
+  roundRect(W / 2 - 120, 6, 240, 30, 10); ctx.fillStyle = '#ff5c5c'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#2b2d42'; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = '20px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('POKE DERBY STADIUM', W / 2, 22);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 80, W, 6);
+  for (let x = 6; x < W; x += 24) ctx.fillRect(x, 80, 4, 16);
+  for (let gx = 0; gx < W; gx += 40) {
+    ctx.fillStyle = (gx / 40) % 2 ? '#86cc5f' : '#94d66b';
+    ctx.fillRect(gx, 86, 40, TRACK_TOP - 86);
+    ctx.fillRect(gx, TRACK_BOTTOM, 40, H - TRACK_BOTTOM);
+  }
+  flowers.forEach((fl) => {
+    ctx.fillStyle = fl.c; ctx.beginPath(); ctx.arc(fl.x, fl.y, 2.6, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#ffb703'; ctx.beginPath(); ctx.arc(fl.x, fl.y, 1, 0, 6.28); ctx.fill();
+  });
+}
+
+function drawTrack() {
+  ctx.fillStyle = '#7fc457'; ctx.fillRect(0, TRACK_TOP, START_X - 50, LANE_H * LANES);
+  for (let i = 0; i < LANES; i++) {
+    ctx.fillStyle = i % 2 ? '#d9a066' : '#e2ad74';
+    ctx.fillRect(START_X - 50, TRACK_TOP + LANE_H * i, W - START_X + 50, LANE_H);
+  }
+  dirtSpecks.forEach((s) => { ctx.fillStyle = 'rgba(110,60,20,' + s.a + ')'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill(); });
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(START_X - 50, TRACK_TOP - 4, W, 4); ctx.fillRect(START_X - 50, TRACK_BOTTOM, W, 4);
+  ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 2; ctx.setLineDash([14, 12]);
+  for (let j = 1; j < LANES; j++) { const y = TRACK_TOP + LANE_H * j; ctx.beginPath(); ctx.moveTo(START_X - 50, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.setLineDash([]);
+  ctx.font = '13px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  [250, 500, 750].forEach((m) => {
+    const x = posToX(m);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, TRACK_TOP); ctx.lineTo(x, TRACK_BOTTOM); ctx.stroke();
+    roundRect(x - 18, TRACK_TOP - 18, 36, 16, 6); ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.fillStyle = '#2b2d42'; ctx.fillText(m + 'm', x, TRACK_TOP - 10);
+  });
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(START_X - 3, TRACK_TOP, 6, LANE_H * LANES);
+  const sq = 10;
+  for (let fy = TRACK_TOP; fy < TRACK_BOTTOM; fy += sq) {
+    for (let fx = 0; fx < 2; fx++) {
+      ctx.fillStyle = ((fy - TRACK_TOP) / sq + fx) % 2 ? '#2b2d42' : '#ffffff';
+      ctx.fillRect(FINISH_X + fx * sq, fy, sq, sq);
+    }
+  }
+  ctx.fillStyle = '#ff5c5c'; ctx.fillRect(FINISH_X + 4, TRACK_TOP - 26, 8, 22);
+  ctx.fillStyle = '#2b2d42'; ctx.font = '14px Jua, sans-serif'; ctx.fillText('GOAL', FINISH_X + 10, TRACK_TOP - 34);
+}
+
+function fitText(text, maxW) {
+  if (ctx.measureText(text).width <= maxW) return text;
+  let s = text;
+  while (s.length > 1 && ctx.measureText(s + '..').width > maxW) s = s.slice(0, -1);
+  return s + '..';
+}
+
+function drawLaneLabels() {
+  const mine = myLane();
+  for (let i = 0; i < LANES; i++) {
+    const y = laneY(i);
+    if (i === mine) {
+      ctx.fillStyle = 'rgba(255, 220, 80, .35)';
+      ctx.fillRect(START_X - 50, TRACK_TOP + LANE_H * i + 2, W - START_X + 50, LANE_H - 4);
+    }
+    roundRect(8, y - 21, START_X - 66, 42, 12);
+    ctx.fillStyle = i === mine ? '#fff6d6' : '#ffffff'; ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = i === mine ? '#e0a800' : '#2b2d42'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(30, y, 14, 0, 6.28); ctx.fillStyle = LANE_COLORS[i]; ctx.fill(); ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#2b2d42'; ctx.font = '17px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(i + 1), 30, y + 1);
+    const p = pickOf(i);
+    ctx.textAlign = 'left';
+    ctx.font = '13px Jua, sans-serif'; ctx.fillStyle = '#7a7f99';
+    ctx.fillText(fitText(S.names[i], START_X - 128), 50, y - 8);
+    ctx.font = '15px Jua, sans-serif'; ctx.fillStyle = p ? '#2b2d42' : '#b3b7c9';
+    ctx.fillText(fitText(p ? p.nick : '빈자리', START_X - 128), 50, y + 10);
+  }
+}
+
+// cute fallback character: round body, ears, eyes, blush, number badge
+function drawBlob(x, y, i, squash, step, fx) {
+  const col = LANE_COLORS[i], dark = LANE_DARK[i];
+  const rw = 21 * (1 + squash * 0.12), rh = 21 * (1 - squash * 0.12);
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = dark;
+  ctx.beginPath(); ctx.ellipse(-8 + step * 4, rh - 2, 6, 4, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(8 - step * 4, rh - 2, 6, 4, 0, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = dark; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-rw + 2, 2); ctx.quadraticCurveTo(-rw - 12, -4 + step * 3, -rw - 8, -14); ctx.stroke();
+  ctx.fillStyle = col; ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-12, -rh + 6); ctx.lineTo(-16, -rh - 12); ctx.lineTo(-3, -rh + 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4, -rh + 2); ctx.lineTo(14, -rh - 13); ctx.lineTo(15, -rh + 7); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(0, 0, rw, rh, 0, 0, 6.28); ctx.fillStyle = col; ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(-2, 7, rw * 0.55, rh * 0.45, 0, 0, 6.28); ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fill();
+  const blink = (Math.floor(performance.now() / 120 + i * 7) % 40) === 0;
+  ctx.fillStyle = '#2b2d42';
+  if (fx === 2 || blink) {
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(3, -5); ctx.lineTo(9, -3); ctx.moveTo(12, -3); ctx.lineTo(18, -5); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.ellipse(6, -4, 3, 4, 0, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(15, -4, 3, 4, 0, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(6, -7, 1.6, 1.6); ctx.fillRect(15, -7, 1.6, 1.6);
+  }
+  ctx.fillStyle = 'rgba(255,100,120,.55)';
+  ctx.beginPath(); ctx.ellipse(2, 3, 3.5, 2.2, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(19, 3, 3, 2, 0, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(11, 2, 2.4, 0.2, Math.PI - 0.2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(-9, 6, 7.5, 0, 6.28); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 1.8; ctx.strokeStyle = '#2b2d42'; ctx.stroke();
+  ctx.fillStyle = '#2b2d42'; ctx.font = '11px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(String(i + 1), -9, 6.5);
+  ctx.restore();
+}
+
+function drawRunnerImage(x, y, i, squash) {
+  const img = runnerImgs[i].img;
+  const maxS = 54;
+  const sc = Math.min(maxS / img.naturalWidth, maxS / img.naturalHeight);
+  const w = img.naturalWidth * sc * (1 + squash * 0.1), h = img.naturalHeight * sc * (1 - squash * 0.1);
+  ctx.drawImage(img, x - w / 2, y + 22 - h, w, h);
+  ctx.beginPath(); ctx.arc(x - w / 2 + 4, y + 14, 8, 0, 6.28); ctx.fillStyle = LANE_COLORS[i]; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#2b2d42'; ctx.stroke();
+  ctx.fillStyle = '#2b2d42'; ctx.font = '11px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(String(i + 1), x - w / 2 + 4, y + 14.5);
+}
+
+function spawn(p) { if (particles.length < 600) particles.push(p); }
+
+function burstConfetti(lane) {
+  const x = FINISH_X, y = laneY(lane);
+  for (let k = 0; k < 90; k++) {
+    spawn({ kind: 'confetti', x, y, vx: (Math.random() - 0.7) * 9, vy: -Math.random() * 9 - 2, g: 0.32, life: 90 + Math.random() * 40, max: 130, c: LANE_COLORS[k % 8], s: 3 + Math.random() * 4, rot: Math.random() * 6 });
+  }
+}
+
+function updateParticles(dt) {
+  const k = dt / 16.67;
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * k; p.y += p.vy * k; p.vy += (p.g || 0) * k; p.life -= k;
+    if (p.rot != null) p.rot += 0.2 * k;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  particles.forEach((p) => {
+    const a = Math.max(0, Math.min(1, p.life / p.max));
+    ctx.globalAlpha = a;
+    if (p.kind === 'spark') {
+      ctx.fillStyle = p.c; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot || 0);
+      ctx.beginPath();
+      for (let s = 0; s < 4; s++) { ctx.rotate(Math.PI / 2); ctx.moveTo(0, 0); ctx.lineTo(p.s * 0.35, p.s * 0.35); ctx.lineTo(0, p.s * 1.4); ctx.lineTo(-p.s * 0.35, p.s * 0.35); }
+      ctx.fill(); ctx.restore();
+    } else if (p.kind === 'line') {
+      ctx.strokeStyle = p.c; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.len, p.y); ctx.stroke();
+    } else if (p.kind === 'sweat') {
+      ctx.fillStyle = '#7cc7ff'; ctx.strokeStyle = '#2b6fb3'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y - 6); ctx.quadraticCurveTo(p.x + 5, p.y + 1, p.x, p.y + 3); ctx.quadraticCurveTo(p.x - 5, p.y + 1, p.x, p.y - 6); ctx.fill(); ctx.stroke();
+    } else if (p.kind === 'dust') {
+      ctx.fillStyle = 'rgba(160,110,60,.55)'; ctx.beginPath(); ctx.arc(p.x, p.y, p.s * (1.6 - a * 0.6), 0, 6.28); ctx.fill();
+    } else if (p.kind === 'confetti') {
+      ctx.fillStyle = p.c; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore();
+    }
+  });
+  ctx.globalAlpha = 1;
+}
+
+function drawRunners(dt, snap) {
+  const racing = S.phase === 'racing';
+  for (let i = 0; i < LANES; i++) {
+    const speed = snap.speed[i];
+    const finished = snap.order.indexOf(i) >= 0;
+    const moving = racing && !finished && speed > 0.1;
+    const rate = moving ? 0.010 + speed * 0.0016 : 0.004;
+    bouncePhase[i] += dt * rate;
+    const hopAmp = moving ? 9 : (S.phase === 'countdown' ? 3 : 2.5);
+    const s = Math.abs(Math.sin(bouncePhase[i]));
+    const hop = s * hopAmp;
+    const squash = moving ? (1 - s) * 0.9 - 0.2 : 0;
+    const step = Math.sin(bouncePhase[i] * 2);
+    const x = posToX(snap.pos[i]) - 24;
+    const baseY = laneY(i) + 2;
+    const y = baseY - hop;
+    const fx = moving ? snap.fx[i] : 0;
+
+    ctx.fillStyle = 'rgba(70,40,10,.25)';
+    ctx.beginPath(); ctx.ellipse(x, baseY + 21, 18 - hop * 0.6, 4.5, 0, 0, 6.28); ctx.fill();
+
+    if (moving) {
+      if (Math.random() < 0.18) spawn({ kind: 'dust', x: x - 18, y: baseY + 18, vx: -0.8 - Math.random(), vy: -0.3, life: 22, max: 22, s: 3 + Math.random() * 2 });
+      if (fx === 1) {
+        if (Math.random() < 0.55) spawn({ kind: 'line', x: x - 26, y: baseY - 14 + Math.random() * 30, vx: -3, vy: 0, life: 12, max: 12, len: 16 + Math.random() * 16, c: 'rgba(255,255,255,.9)' });
+        if (Math.random() < 0.45) spawn({ kind: 'spark', x: x - 10 + Math.random() * 30, y: y - 20 + Math.random() * 30, vx: -1.5, vy: -0.6, life: 20, max: 20, s: 4 + Math.random() * 3, rot: Math.random() * 3, c: Math.random() < 0.5 ? '#ffe14d' : '#ffffff' });
+      } else if (fx === 2) {
+        if (Math.random() < 0.12) spawn({ kind: 'sweat', x: x + 14 + Math.random() * 8, y: y - 26, vx: 0.6, vy: -1.1, g: 0.12, life: 26, max: 26 });
+      }
+    }
+
+    if (fx === 1) {
+      const gr = ctx.createRadialGradient(x, y, 6, x, y, 36);
+      gr.addColorStop(0, 'rgba(255,240,120,.55)'); gr.addColorStop(1, 'rgba(255,240,120,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, 36, 0, 6.28); ctx.fill();
+    }
+
+    if (runnerImgs[i].ok) drawRunnerImage(x, y, i, squash);
+    else drawBlob(x, y, i, squash, step, fx);
+
+    const rk = snap.order.indexOf(i);
+    if (rk >= 0) {
+      const bx = Math.min(W - 26, x + 52), by = baseY - 2;
+      ctx.beginPath(); ctx.arc(bx, by, 14, 0, 6.28);
+      ctx.fillStyle = rk === 0 ? '#ffcb05' : (rk === 1 ? '#d6dbe8' : (rk === 2 ? '#e7a36b' : '#ffffff'));
+      ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#2b2d42'; ctx.stroke();
+      ctx.fillStyle = '#2b2d42'; ctx.font = '14px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText((rk + 1) + '위', bx, by + 1);
+    }
+  }
+}
+
+function drawOverlay(t, info) {
+  let label = null, sub = null, scale = 1;
+  if (info.phase === 'countdown') {
+    label = String(info.countdown);
+    const k = Math.min(1, (t - S.countdownChangedAt) / 350);
+    scale = 1.6 - 0.6 * (1 - Math.pow(1 - k, 3));
+    sub = '준비!';
+  } else if (info.phase === 'racing' && t < S.goUntil) {
+    label = 'GO!';
+    scale = 1 + (S.goUntil - t) / 900 * 0.4;
+  } else if (info.phase === 'waiting' || info.phase === 'connecting') {
+    const text = info.phase === 'connecting' ? '연결 중...' : '선점 진행 중 (' + takenCount() + '/8) - 관리자 시작 대기';
+    roundRect(W / 2 - 230, TRACK_TOP + LANE_H * 4 - 26, 460, 52, 16);
+    ctx.fillStyle = 'rgba(255,255,255,.88)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#2b2d42'; ctx.stroke();
+    ctx.fillStyle = '#2b2d42'; ctx.font = '22px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, W / 2, TRACK_TOP + LANE_H * 4 + 1);
+    return;
+  }
+  if (!label) return;
+  ctx.fillStyle = 'rgba(30,34,60,.25)'; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.translate(W / 2, H / 2 + 10); ctx.scale(scale, scale);
+  ctx.font = '140px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 14; ctx.strokeStyle = '#2b2d42'; ctx.strokeText(label, 0, 0);
+  ctx.fillStyle = label === 'GO!' ? '#ff5c5c' : '#ffcb05'; ctx.fillText(label, 0, 0);
+  ctx.restore();
+  if (sub) {
+    ctx.font = '30px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 6; ctx.strokeStyle = '#2b2d42';
+    ctx.strokeText(sub, W / 2, H / 2 - 80); ctx.fillStyle = '#fff'; ctx.fillText(sub, W / 2, H / 2 - 80);
+  }
+}
+
+let lastFrame = performance.now();
+function frame(t) {
+  const dt = Math.min(50, t - lastFrame); lastFrame = t;
+  let info, snap;
+  try {
+    snap = raceSnapshot(phaseInfo());
+    info = watchPhase(t, snap);
+  } catch (e) {
+    console.error(e);
+    info = { phase: 'waiting' };
+    snap = { pos: new Array(LANES).fill(0), speed: new Array(LANES).fill(0), fx: new Array(LANES).fill(0), order: [] };
+  }
+  ctx.clearRect(0, 0, W, H);
+  drawBackground(t);
+  drawTrack();
+  drawLaneLabels();
+  updateParticles(dt);
+  drawRunners(dt, snap);
+  drawParticles();
+  drawOverlay(t, info);
+  requestAnimationFrame(frame);
+}
+
+renderAll();
+requestAnimationFrame(frame);
+boot();
+</script>
+</body>
+</html>
