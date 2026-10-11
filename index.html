@@ -213,9 +213,33 @@
   .setup.show { display: block; }
   .setup h3 { font-family: 'Jua', sans-serif; font-weight: normal; font-size: 24px; margin: 0 0 8px; }
   .setup code { background: #f1f3f9; padding: 1px 6px; border-radius: 6px; }
+  .admin-mode { font-family: 'Jua', sans-serif; font-size: 13px; background: #2b2d42; color: #fff; padding: 4px 10px; border-radius: 999px; }
   #loginOverlay { z-index: 55; }
   #adminOverlay { z-index: 60; }
-  .admin-mode { font-family: 'Jua', sans-serif; font-size: 13px; background: #2b2d42; color: #fff; padding: 4px 10px; border-radius: 999px; }
+
+  .join-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .join-head h2 { margin: 0 0 4px; }
+  .join-head .info { font-size: 15px; color: var(--muted); }
+  .join-head .info b { color: var(--ink); font-family: 'Jua', sans-serif; font-weight: normal; font-size: 17px; }
+  .timer { font-family: 'Jua', sans-serif; font-size: 30px; color: var(--primary-dark); letter-spacing: 1px; }
+  .btn.big { font-size: 22px; padding: 12px 28px; border-radius: 16px; }
+  .meter { height: 12px; border-radius: 999px; background: #eef1f8; border: 2px solid var(--ink); overflow: hidden; margin-top: 8px; max-width: 360px; }
+  .meter > div { height: 100%; background: var(--green); transition: width .3s; }
+  .meter.low > div { background: var(--accent); }
+  .entry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .entry {
+    position: relative; border-radius: 14px; border: 3px solid var(--ink); background: #fff; padding: 10px 8px 8px;
+    text-align: center; box-shadow: 0 3px 0 rgba(43,45,66,.15);
+  }
+  .entry.mine { background: #fff6d6; border-color: #e0a800; box-shadow: 0 3px 0 #e0a800; }
+  .entry canvas { width: 64px; height: 64px; display: block; margin: 0 auto 4px; }
+  .entry .ord { position: absolute; left: 7px; top: 6px; font-family: 'Jua', sans-serif; font-size: 13px; color: var(--muted); }
+  .entry .nick { font-family: 'Jua', sans-serif; font-size: 16px; word-break: break-all; }
+  .entry .sp { font-size: 12px; color: var(--muted); }
+  .entry .x { position: absolute; right: 5px; top: 5px; }
+  .entry-empty { grid-column: 1 / -1; color: var(--muted); padding: 18px 4px; font-size: 15px; }
+  .history li .when { color: var(--muted); font-size: 12px; }
+  .history li .chk { font-size: 11px; color: var(--green); margin-left: 4px; }
 </style>
 </head>
 <body>
@@ -223,8 +247,8 @@
 
 <header>
   <div class="logo"><div class="ball"></div>포켓 더비</div>
-  <span class="chip" id="roundChip">라운드 1</span>
   <span class="chip phase-waiting" id="phaseChip">연결 중</span>
+  <span class="chip" id="nextChip">다음 경기 --:--</span>
   <span class="chip" id="onlineChip">접속 0명</span>
   <div class="spacer"></div>
   <span class="admin-mode" id="adminBadge" style="display:none">관리자 모드</span>
@@ -255,8 +279,19 @@
     </div>
 
     <div class="card">
-      <h2>출전 포켓몬 선점하기 <span style="font-size:15px;color:var(--muted)" id="pickCount">(0 / 8)</span></h2>
-      <div class="pick-grid" id="pickGrid"></div>
+      <div class="join-head">
+        <div style="flex:1;min-width:240px">
+          <h2 id="joinTitle">다음 경기</h2>
+          <div class="info" id="joinInfo"></div>
+          <div class="meter" id="meter"><div id="meterBar" style="width:0%"></div></div>
+        </div>
+        <div style="text-align:right">
+          <div class="timer" id="joinTimer">--:--:--</div>
+          <div class="info" id="joinTimerLabel">참가 마감까지</div>
+        </div>
+        <button class="btn primary big" id="joinRaceBtn">참가하기</button>
+      </div>
+      <div class="entry-grid" id="entryGrid"></div>
     </div>
   </section>
 
@@ -264,15 +299,16 @@
     <div class="card guide">
       <h2>참여 방법</h2>
       <ol>
-        <li>디스코드 닉네임으로 입장합니다.</li>
-        <li>1번부터 8번 중 비어 있는 포켓몬 1마리를 선점합니다. 한 사람당 1마리, 먼저 고른 사람이 임자입니다.</li>
-        <li>관리자가 레이스를 시작하면 3, 2, 1 카운트다운 후 출발합니다.</li>
-        <li>1등으로 들어온 포켓몬을 선점한 플레이어가 우승자입니다.</li>
+        <li>디스코드 닉네임을 입력합니다.</li>
+        <li><b>참가하기</b>를 누르면 나만의 포켓몬 캐릭터가 생성되어 다음 경기에 출전합니다.</li>
+        <li id="guideSchedule">경기는 2시간마다 자동으로 출발합니다.</li>
+        <li id="guideMin">참가자가 6명 미만이면 그 회차는 취소되고 다음 회차를 기다립니다.</li>
+        <li>1등으로 들어온 캐릭터의 주인이 우승자입니다.</li>
       </ol>
-      <p style="font-size:13px;color:var(--muted);margin:10px 0 0">모든 주자는 같은 규칙과 같은 확률로 달립니다. 누구나 1등을 할 수 있어요.</p>
+      <p style="font-size:13px;color:var(--muted);margin:10px 0 0">경기 결과는 참가 마감 뒤에 공개되는 전 세계 공용 난수(drand)로 정해집니다. 관리자를 포함해 누구도 결과를 미리 알거나 바꿀 수 없습니다.</p>
     </div>
     <div class="card">
-      <h2>최근 우승 기록</h2>
+      <h2>우승 기록</h2>
       <ul class="history" id="historyList"><li class="empty">아직 기록이 없습니다.</li></ul>
     </div>
   </aside>
@@ -282,7 +318,7 @@
 <div class="overlay" id="loginOverlay">
   <div class="modal">
     <h3>포켓 더비 입장</h3>
-    <p>디스코드 닉네임을 입력해 주세요. 우승자 발표에 이 닉네임이 사용됩니다.</p>
+    <p>디스코드 닉네임을 입력해 주세요. 우승자 발표와 기록에 이 닉네임이 사용됩니다.</p>
     <form id="loginForm">
       <input class="input" id="nickInput" maxlength="20" placeholder="예: 지우" autocomplete="off">
       <div class="error" id="loginError"></div>
@@ -313,19 +349,18 @@
     </div>
     <div id="adminPanel" style="display:none">
       <div class="admin-info" id="adminInfo"></div>
+      <p style="font-size:14px;margin:8px 0">경기는 정해진 시각에 자동으로 진행됩니다. 참가 접수 중에는 참가자 카드의 [제외] 버튼으로 특정 참가자를 뺄 수 있습니다.</p>
       <div class="admin-actions">
-        <button class="btn primary full" id="aStart">레이스 시작</button>
-        <button class="btn" id="aResetPicks">선택 초기화</button>
-        <button class="btn green" id="aNewRound">새 라운드 준비</button>
-        <button class="btn ghost" id="aAbort">진행 중 레이스 중단</button>
+        <button class="btn blue" id="aVerify">우승 기록 검증 / 복구 (최근 7일)</button>
         <button class="btn ghost" id="aClearNicks">닉네임 전체 초기화</button>
         <button class="btn ghost" id="aLogout">관리자 로그아웃</button>
       </div>
+      <div class="admin-info" id="verifyOut" style="margin-bottom:12px"></div>
       <table class="admin-table">
-        <thead><tr><th style="width:44px">번호</th><th>포켓몬 이름</th><th style="width:60px"></th><th>선점자</th><th style="width:60px"></th></tr></thead>
+        <thead><tr><th style="width:44px">종류</th><th>포켓몬 이름</th><th style="width:60px"></th></tr></thead>
         <tbody id="adminRows"></tbody>
       </table>
-      <p style="font-size:13px;margin-top:12px">주자 이미지는 저장소의 runners/runner1.png ~ runner8.png 파일을 올리면 됩니다. (반영 후 새로고침)</p>
+      <p style="font-size:13px;margin-top:12px">캐릭터 이미지는 저장소의 runners/runner1.png ~ runner8.png 를 올리면 해당 종류의 캐릭터에 적용됩니다.</p>
     </div>
   </div>
 </div>
@@ -334,13 +369,13 @@
 <div class="overlay" id="resultOverlay">
   <div class="modal wide">
     <div class="result-banner">
-      <div class="label" id="resLabel">라운드 1 우승</div>
-      <div class="thumb" id="resThumb" style="margin:8px auto"></div>
-      <div class="winner-runner" id="resRunner"></div>
+      <div class="label" id="resLabel">우승</div>
+      <canvas id="resThumb" width="184" height="184" style="width:92px;height:92px;display:block;margin:8px auto"></canvas>
       <div class="winner-player" id="resPlayer"></div>
+      <div class="winner-runner" id="resRunner" style="font-size:22px"></div>
     </div>
     <table class="rank-table">
-      <thead><tr><th>순위</th><th>포켓몬</th><th>선점 플레이어</th><th>기록</th></tr></thead>
+      <thead><tr><th>순위</th><th>플레이어</th><th>캐릭터</th><th>기록</th></tr></thead>
       <tbody id="resRows"></tbody>
     </table>
     <div class="row end"><button class="btn primary" id="resClose">확인</button></div>
@@ -348,119 +383,176 @@
 </div>
 
 <div class="toast" id="toast"></div>
-
 <script type="module">
-import { firebaseConfig, ADMIN_EMAIL } from './config.js';
+import * as CFG from './config.js';
 
 // ================================================================
-// Constants
+// Config
 // ================================================================
+const firebaseConfig = CFG.firebaseConfig;
+const ADMIN_LIST = [].concat(CFG.ADMIN_EMAILS || [], CFG.ADMIN_EMAIL || [])
+  .map((e) => String(e).trim().toLowerCase()).filter(Boolean);
+function isAdminEmail(email) { return !!email && ADMIN_LIST.indexOf(String(email).toLowerCase()) >= 0; }
+
+const SCH = Object.assign({ intervalMinutes: 120, offsetMinutes: 30, minPlayers: 6, maxPlayers: 20 }, CFG.SCHEDULE || {});
+const INTERVAL = SCH.intervalMinutes * 60000;
+const OFFSET = SCH.offsetMinutes * 60000;
+const MIN_PLAYERS = SCH.minPlayers;
+const MAX_PLAYERS = SCH.maxPlayers;
+const KST = 9 * 3600000;            // Korea Standard Time, no DST
+const CLOSE_BEFORE = 60000;          // entries close 1 minute before start
+const COUNTDOWN = 3000;
+const RESULT_HOLD = 60000;           // keep showing results for 1 minute after finish
+const CANCEL_HOLD = 60000;
+const BACKFILL_SLOTS = 12;           // auto-record recent slots nobody watched (24h at 2h interval)
+const VERIFY_SHOW = 20;
+
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
-const LANES = 8;
+const DRAND = {
+  genesis: 1595431050, period: 30, // League of Entropy default chain
+  urls: ['https://api.drand.sh/public/', 'https://api2.drand.sh/public/', 'https://api3.drand.sh/public/', 'https://drand.cloudflare.com/public/'],
+};
+
 const TRACK_LENGTH = 1000;
 const TICK_MS = 100;
-const COUNTDOWN_MS = 3600;      // 3,2,1 + small buffer for network propagation
 const MAX_TICKS = 1500;
+const SPECIES = 8;
 const DEFAULT_NAMES = ['피카츄', '이브이', '파이리', '꼬부기', '이상해씨', '푸린', '나옹', '고라파덕'];
-const LANE_COLORS = ['#FFD23F', '#FF9F68', '#FF6B6B', '#5DADEC', '#7BD389', '#FF9EC7', '#B79CFF', '#4FD1C5'];
-const LANE_DARK   = ['#C99A00', '#D9692E', '#C93C3C', '#2F7EBF', '#3F9A55', '#D25E92', '#7B5CD6', '#239A90'];
-const PHASE_TEXT = { connecting: '연결 중', waiting: '선점 대기 중', countdown: '카운트다운', racing: '레이스 진행 중', finished: '결과 발표' };
+const COLORS = ['#FFD23F', '#FF9F68', '#FF6B6B', '#5DADEC', '#7BD389', '#FF9EC7', '#B79CFF', '#4FD1C5', '#F7B2FF', '#A0E7E5', '#FFC6A5', '#C4E17F'];
+const DARKS  = ['#C99A00', '#D9692E', '#C93C3C', '#2F7EBF', '#3F9A55', '#D25E92', '#7B5CD6', '#239A90', '#B067C4', '#3FA7A3', '#D98A5F', '#7F9F35'];
+const PHASE_TEXT = {
+  connecting: '연결 중', open: '참가 접수 중', closed: '참가 마감', countdown: '곧 출발',
+  draw: '추첨 중', racing: '레이스 진행 중', finished: '결과 발표', canceled: '인원 부족 취소',
+};
+const PHASE_CHIP = { connecting: 'waiting', open: 'waiting', closed: 'countdown', countdown: 'countdown', draw: 'countdown', racing: 'racing', finished: 'finished', canceled: 'finished' };
 
 const $ = (id) => document.getElementById(id);
 
 // ================================================================
-// Shared state (mirrors Firebase)
+// State
 // ================================================================
 const S = {
-  ready: false,
-  uid: null,
-  email: null,
-  isAdmin: false,
-  me: null,              // { nick }
-  room: { round: 1, race: null },
-  picks: {},             // { "1": {uid, nick} }
-  names: DEFAULT_NAMES.slice(),
-  history: {},
-  online: 0,
-  offset: 0,
-  connected: true,
-  parsedRaceId: null,
-  parsed: null,
-  phase: 'connecting',
-  shownResultId: null,
-  goUntil: 0,
-  countdownShown: 0,
-  countdownChangedAt: 0,
+  ready: false, uid: null, email: null, isAdmin: false, me: null,
+  names: DEFAULT_NAMES.slice(), online: 0, offset: 0, connected: true,
+  entries: {},        // slotKey -> {uid: entry}
+  entriesLoaded: {},  // slotKey -> true
+  races: {},          // slotKey -> {status, ...}
+  winners: {},        // slotKey -> winner record (latest 30)
+  verified: {},       // slotKey -> computed winner (or {canceled})
+  view: { phase: 'connecting', lanes: [] },
+  shownResult: null,
+  goUntil: 0, cdShown: 0, cdAt: 0,
 };
-
-let fb = null; // firebase function bag
-let db = null;
-let auth = null;
+let fb = null, db = null, auth = null;
 
 function serverNow() { return Date.now() + S.offset; }
 
 // ================================================================
-// Runner images (runners/runnerN.png) with fallback
+// Schedule (Korea time, every INTERVAL starting at OFFSET after midnight)
 // ================================================================
-const runnerImgs = [];
-for (let i = 0; i < LANES; i++) {
-  const entry = { img: new Image(), ok: false };
-  entry.img.onload = () => { if (entry.img.naturalWidth > 0) { entry.ok = true; renderPicks(); } };
-  entry.img.onerror = () => { entry.ok = false; };
-  entry.img.src = 'runners/runner' + (i + 1) + '.png';
-  runnerImgs.push(entry);
+function slotAtOrBefore(t) { return Math.floor((t + KST - OFFSET) / INTERVAL) * INTERVAL - KST + OFFSET; }
+function closeAtOf(slot) { return slot - CLOSE_BEFORE; }
+function fmtKST(ms, withDate) {
+  const opt = { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false };
+  if (withDate) { opt.month = 'numeric'; opt.day = 'numeric'; }
+  return new Intl.DateTimeFormat('ko-KR', opt).format(new Date(ms));
+}
+function fmtDur(ms) {
+  ms = Math.max(0, ms);
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0');
 }
 
-// ================================================================
-// Fair race simulation (run once in the admin browser at start time)
-// All 8 runners use identical rules and identical random distributions.
-// ================================================================
-function rand() {
-  const a = new Uint32Array(2);
-  crypto.getRandomValues(a);
-  return (a[0] * 2097152 + (a[1] >>> 11)) / 9007199254740992;
+// valid, ordered roster for a slot (identical on every client)
+function rosterFrom(slot, obj) {
+  const close = closeAtOf(slot);
+  const list = [];
+  Object.keys(obj || {}).forEach((uid) => {
+    const e = obj[uid];
+    if (!e || e.closeAt !== close || typeof e.at !== 'number' || e.at >= close) return;
+    list.push({ uid, nick: String(e.nick || ''), species: clampInt(e.species, 1, SPECIES), color: clampInt(e.color, 0, COLORS.length - 1), at: e.at });
+  });
+  list.sort((a, b) => (a.at - b.at) || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
+  return list.slice(0, MAX_PLAYERS);
 }
-function randRange(a, b) { return a + rand() * (b - a); }
-function randInt(a, b) { return a + Math.floor(rand() * (b - a + 1)); }
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function clampInt(v, lo, hi) { v = Math.floor(Number(v) || 0); return Math.max(lo, Math.min(hi, v)); }
 
-function stepRunner(r) {
-  r.pace += randRange(-0.35, 0.35);
-  r.pace += (5.0 - r.pace) * 0.04;
-  r.pace = clamp(r.pace, 3.6, 6.4);
-  if (r.fxLeft > 0) {
-    r.fxLeft--;
-    if (r.fxLeft === 0) { r.fxMode = 0; r.fxMult = 1; }
-  } else {
-    const roll = rand();
-    if (roll < 0.035) { r.fxMode = 1; r.fxLeft = randInt(6, 16); r.fxMult = randRange(1.35, 1.75); }
-    else if (roll < 0.055) { r.fxMode = 2; r.fxLeft = randInt(3, 7); r.fxMult = randRange(0.45, 0.7); }
+// ================================================================
+// Public randomness (drand) + deterministic race simulation
+// ================================================================
+function drandRoundAfter(ms) { return Math.floor((ms / 1000 - DRAND.genesis) / DRAND.period) + 2; }
+function drandRoundTime(r) { return (DRAND.genesis + (r - 1) * DRAND.period) * 1000; }
+
+const drandMem = {};
+async function fetchDrand(round) {
+  if (drandMem[round]) return drandMem[round];
+  try { const c = localStorage.getItem('pd_drand_' + round); if (c) return (drandMem[round] = c); } catch (e) { /* ignore */ }
+  let lastErr = null;
+  for (const base of DRAND.urls) {
+    try {
+      const res = await fetch(base + round, { cache: 'no-store' });
+      if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
+      const j = await res.json();
+      if (Number(j.round) !== round || !/^[0-9a-f]{64}$/.test(String(j.randomness))) { lastErr = new Error('bad drand payload'); continue; }
+      drandMem[round] = j.randomness;
+      try { localStorage.setItem('pd_drand_' + round, j.randomness); } catch (e) { /* ignore */ }
+      return j.randomness;
+    } catch (e) { lastErr = e; }
   }
-  return Math.max(0.5, r.pace * r.fxMult + randRange(-0.6, 0.6));
+  throw lastErr || new Error('drand unavailable');
 }
 
-function simulateRace() {
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return new Uint32Array(buf);
+}
+function sfc32(a, b, c, d) {
+  return function () {
+    a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+    let t = (a + b) | 0; a = b ^ (b >>> 9); b = (c + (c << 3)) | 0;
+    c = (c << 21) | (c >>> 11); d = (d + 1) | 0; t = (t + d) | 0; c = (c + t) | 0;
+    return (t >>> 0) / 4294967296;
+  };
+}
+
+// every runner uses identical rules and identical random distributions
+function simulate(n, rand) {
+  for (let i = 0; i < 16; i++) rand(); // warm up
+  const rr = (a, b) => a + rand() * (b - a);
+  const ri = (a, b) => a + Math.floor(rand() * (b - a + 1));
   const rs = [];
-  for (let i = 0; i < LANES; i++) rs.push({ pos: 0, pace: randRange(4.4, 5.6), fxMode: 0, fxLeft: 0, fxMult: 1, done: false, time: null, tie: rand() });
-  const frames = [rs.map(() => 0).join(',')];
-  const fx = ['00000000'];
+  for (let i = 0; i < n; i++) rs.push({ pos: 0, pace: rr(4.4, 5.6), fxMode: 0, fxLeft: 0, fxMult: 1, done: false, time: 0, tie: rand() });
+  const frames = [new Float32Array(n)];
+  const fx = [new Uint8Array(n)];
   let tick = 0;
   while (rs.some((r) => !r.done) && tick < MAX_TICKS) {
     tick++;
-    rs.forEach((r) => {
-      if (r.done) return;
-      const sp = stepRunner(r);
-      const before = r.pos;
-      r.pos += sp;
-      if (r.pos >= TRACK_LENGTH) {
-        r.time = (tick - 1 + (TRACK_LENGTH - before) / sp) * TICK_MS / 1000; // exact crossing time
-        r.pos = TRACK_LENGTH; r.done = true; r.fxMode = 0;
+    const fr = new Float32Array(n), fm = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      const r = rs[i];
+      if (!r.done) {
+        r.pace += rr(-0.35, 0.35);
+        r.pace += (5.0 - r.pace) * 0.04;
+        r.pace = Math.max(3.6, Math.min(6.4, r.pace));
+        if (r.fxLeft > 0) { r.fxLeft--; if (r.fxLeft === 0) { r.fxMode = 0; r.fxMult = 1; } }
+        else {
+          const roll = rand();
+          if (roll < 0.035) { r.fxMode = 1; r.fxLeft = ri(6, 16); r.fxMult = rr(1.35, 1.75); }
+          else if (roll < 0.055) { r.fxMode = 2; r.fxLeft = ri(3, 7); r.fxMult = rr(0.45, 0.7); }
+        }
+        const sp = Math.max(0.5, r.pace * r.fxMult + rr(-0.6, 0.6));
+        const before = r.pos;
+        r.pos += sp;
+        if (r.pos >= TRACK_LENGTH) {
+          r.time = (tick - 1 + (TRACK_LENGTH - before) / sp) * TICK_MS / 1000;
+          r.pos = TRACK_LENGTH; r.done = true; r.fxMode = 0;
+        }
       }
-    });
-    frames.push(rs.map((r) => (Math.round(r.pos * 10) / 10)).join(','));
-    fx.push(rs.map((r) => r.fxMode).join(''));
+      fr[i] = r.pos; fm[i] = r.fxMode;
+    }
+    frames.push(fr); fx.push(fm);
   }
-  // anything not finished by the safety limit gets ranked by distance
   rs.forEach((r) => { if (!r.done) r.time = MAX_TICKS * TICK_MS / 1000 + (TRACK_LENGTH - r.pos) / 100; });
   const order = rs.map((r, i) => i).sort((a, b) => (rs[a].time - rs[b].time) || (rs[a].tie - rs[b].tie));
   const times = rs.map((r) => Math.round(r.time * 1000) / 1000);
@@ -468,114 +560,38 @@ function simulateRace() {
   return { frames, fx, times, order, endMs };
 }
 
-// ================================================================
-// Derived race phase from server time
-// ================================================================
-function currentRace() { return S.room && S.room.race ? S.room.race : null; }
-
-function phaseInfo() {
-  if (!S.ready) return { phase: 'connecting' };
-  const r = currentRace();
-  if (!r || typeof r.createdAt !== 'number') return { phase: 'waiting' };
-  const start = r.createdAt + r.countdownMs;
-  const t = serverNow();
-  if (t < start) return { phase: 'countdown', countdown: Math.max(1, Math.min(3, Math.ceil((start - t - 600) / 1000))) };
-  const el = t - start;
-  if (el < r.endMs) return { phase: 'racing', elapsed: el };
-  return { phase: 'finished', elapsed: el };
+// full deterministic computation of one slot
+async function computeSlot(slot, entriesObj) {
+  const roster = rosterFrom(slot, entriesObj);
+  if (roster.length < MIN_PLAYERS) return { status: 'canceled', slot, roster, count: roster.length };
+  const round = drandRoundAfter(closeAtOf(slot));
+  const randomness = await fetchDrand(round);
+  const seed = await sha256(randomness + '|' + slot + '|' + roster.map((r) => r.uid).join(','));
+  const sim = simulate(roster.length, sfc32(seed[0], seed[1], seed[2], seed[3]));
+  const ranking = sim.order.map((li, idx) => ({
+    rank: idx + 1, uid: roster[li].uid, nick: roster[li].nick, species: roster[li].species, color: roster[li].color, lane: li + 1, time: sim.times[li],
+  }));
+  return { status: 'ready', slot, roster, count: roster.length, round, randomness, sim, ranking };
 }
 
-function parsedRace() {
-  const r = currentRace();
-  if (!r) return null;
-  if (S.parsedRaceId !== r.id) {
-    const frames = toArray(r.frames).map((s) => String(s).split(',').map(Number));
-    const fx = toArray(r.fx).map((s) => String(s).split('').map(Number));
-    S.parsed = { frames, fx, times: toArray(r.times).map(Number), order: toArray(r.order).map(Number) };
-    S.parsedRaceId = r.id;
-  }
-  return S.parsed;
-}
-
-function toArray(v) {
-  if (Array.isArray(v)) return v;
-  if (v && typeof v === 'object') return Object.keys(v).sort((a, b) => a - b).map((k) => v[k]);
-  return [];
-}
-
-// positions, speeds, fx and finish order at the given elapsed race time
-function raceSnapshot(info) {
-  const p = parsedRace();
-  const zero = new Array(LANES).fill(0);
-  if (!p || info.phase === 'waiting' || info.phase === 'countdown' || info.phase === 'connecting') {
-    return { pos: zero.slice(), speed: zero.slice(), fx: zero.slice(), order: [] };
-  }
-  const last = p.frames.length - 1;
-  const el = info.phase === 'finished' ? Infinity : info.elapsed;
-  const f = el / TICK_MS;
-  const i = Math.min(last, Math.floor(f));
-  const j = Math.min(last, i + 1);
-  const k = i === j ? 0 : f - i;
-  const pos = [], speed = [];
-  for (let l = 0; l < LANES; l++) {
-    const a = p.frames[i][l], b = p.frames[j][l];
-    pos.push(a + (b - a) * k);
-    speed.push(i === j ? 0 : b - a);
-  }
-  const fx = (p.fx[j] || zero).slice();
-  const order = p.order.filter((l) => p.times[l] * 1000 <= el);
-  return { pos, speed, fx, order };
+function winnerRecord(c) {
+  const w = c.ranking[0];
+  return { slot: c.slot, uid: w.uid, nick: w.nick, species: w.species, color: w.color, time: w.time, count: c.count, round: c.round };
 }
 
 // ================================================================
-// Helpers
-// ================================================================
-function myLane() {
-  if (!S.uid) return -1;
-  for (let l = 1; l <= LANES; l++) {
-    const p = S.picks[l];
-    if (p && p.uid === S.uid) return l - 1;
-  }
-  return -1;
-}
-function pickOf(i) { return S.picks[i + 1] || null; }
-function takenCount() { let n = 0; for (let l = 1; l <= LANES; l++) if (S.picks[l]) n++; return n; }
-
-function nickKey(nick) {
-  return encodeURIComponent(nick.toLowerCase()).replace(/\./g, '%2E');
-}
-function cleanText(s, max) {
-  return String(s || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
-}
-function errText(e) {
-  const code = (e && (e.code || e.message)) || '';
-  if (/permission/i.test(code)) return 'PERMISSION';
-  return code;
-}
-
-let toastTimer = null;
-function toast(text) {
-  const t = $('toast'); t.textContent = text; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
-}
-
-// ================================================================
-// Firebase bootstrap
+// Firebase
 // ================================================================
 async function boot() {
   const configured = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.databaseURL;
   if (!configured) {
     $('setupBox').classList.add('show');
     $('setupDetail').textContent = 'config.js 의 apiKey 또는 databaseURL 이 비어 있습니다.';
-    $('statusMsg').textContent = 'Firebase 설정이 필요합니다.';
-    renderAll();
     return;
   }
   try {
     const [appMod, authMod, dbMod] = await Promise.all([
-      import(SDK + 'firebase-app.js'),
-      import(SDK + 'firebase-auth.js'),
-      import(SDK + 'firebase-database.js'),
+      import(SDK + 'firebase-app.js'), import(SDK + 'firebase-auth.js'), import(SDK + 'firebase-database.js'),
     ]);
     fb = { ...authMod, ...dbMod };
     const app = appMod.initializeApp(firebaseConfig);
@@ -587,50 +603,35 @@ async function boot() {
     $('setupDetail').textContent = 'Firebase 초기화 실패: ' + (e && e.message ? e.message : e);
     return;
   }
-
-  subscribeShared();
-
-  fb.onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      S.uid = null; S.email = null; S.isAdmin = false; S.me = null;
-      fb.signInAnonymously(auth).catch((e) => {
-        console.error(e);
-        $('setupBox').classList.add('show');
-        $('setupDetail').textContent = '익명 로그인 실패: Firebase Authentication 에서 "익명" 로그인을 사용 설정했는지 확인하세요. (' + (e.code || e.message) + ')';
-      });
-      renderAll();
-      return;
-    }
-    S.uid = user.uid;
-    S.email = user.email || null;
-    S.isAdmin = !!user.email && user.email.toLowerCase() === String(ADMIN_EMAIL).toLowerCase();
-    subscribeMe();
-    setupPresence();
-    renderAll();
-  });
-}
-
-function subscribeShared() {
-  const { ref, onValue } = fb;
+  const { ref, onValue, query, orderByKey, limitToLast } = fb;
   onValue(ref(db, '.info/serverTimeOffset'), (s) => { S.offset = s.val() || 0; });
-  onValue(ref(db, '.info/connected'), (s) => {
-    S.connected = s.val() === true;
-    $('connBar').classList.toggle('show', S.ready && !S.connected);
-  });
-  onValue(ref(db, 'room'), (s) => {
-    const v = s.val() || {};
-    S.room = { round: v.round || 1, race: v.race || null };
-    S.ready = true;
-    renderAll();
-  }, onReadError);
-  onValue(ref(db, 'picks'), (s) => { S.picks = s.val() || {}; renderAll(); }, onReadError);
+  onValue(ref(db, '.info/connected'), (s) => { S.connected = s.val() === true; $('connBar').classList.toggle('show', S.ready && !S.connected); });
   onValue(ref(db, 'config/names'), (s) => {
     const v = s.val() || {};
     S.names = DEFAULT_NAMES.map((d, i) => (v[i + 1] ? String(v[i + 1]) : d));
     renderAll();
   }, onReadError);
-  onValue(ref(db, 'history'), (s) => { S.history = s.val() || {}; renderHistory(); }, onReadError);
-  onValue(ref(db, 'presence'), (s) => { S.online = Object.keys(s.val() || {}).length; renderHeader(); renderAdmin(); }, onReadError);
+  onValue(ref(db, 'presence'), (s) => { S.online = Object.keys(s.val() || {}).length; renderHeader(); }, onReadError);
+  onValue(query(ref(db, 'winners'), orderByKey(), limitToLast(30)), (s) => {
+    S.winners = s.val() || {};
+    S.ready = true;
+    renderHistory(); verifyHistory();
+  }, onReadError);
+
+  fb.onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      S.uid = null; S.email = null; S.isAdmin = false; S.me = null;
+      fb.signInAnonymously(auth).catch((e) => {
+        $('setupBox').classList.add('show');
+        $('setupDetail').textContent = '익명 로그인 실패: Authentication 에서 익명 로그인을 켰는지, 승인된 도메인에 사이트 주소를 추가했는지 확인하세요. (' + (e.code || e.message) + ')';
+      });
+      renderAll();
+      return;
+    }
+    S.uid = user.uid; S.email = user.email || null; S.isAdmin = isAdminEmail(user.email);
+    subscribeMe(); setupPresence(); renderAll();
+    setTimeout(backfill, 2500);
+  });
 }
 
 function onReadError(e) {
@@ -647,8 +648,8 @@ function subscribeMe() {
     if (uid !== S.uid) return;
     const v = s.val();
     S.me = v && v.nick ? { nick: v.nick } : null;
-    renderAll();
     if (!S.me && !S.isAdmin) showLogin(false); else if (S.me) hideLogin();
+    renderAll();
   });
 }
 
@@ -662,9 +663,133 @@ function setupPresence() {
   fb.set(r, true).catch(() => {});
 }
 
+// keep live subscriptions for the previous/current slot and the next one
+const entrySubs = {};
+function syncEntrySubs(prev, next) {
+  if (!fb) return;
+  const want = [String(prev), String(next)];
+  want.forEach((k) => {
+    if (entrySubs[k]) return;
+    entrySubs[k] = () => {};  // reserve first: the listener may fire synchronously
+    const unsub = fb.onValue(fb.ref(db, 'entries/' + k), (s) => {
+      S.entries[k] = s.val() || {};
+      S.entriesLoaded[k] = true;
+      setTimeout(() => { safe(renderEntries); safe(renderStatus); }, 0);
+    }, onReadError);
+    if (entrySubs[k]) entrySubs[k] = unsub; else unsub();
+  });
+  Object.keys(entrySubs).forEach((k) => {
+    if (want.indexOf(k) < 0) { entrySubs[k](); delete entrySubs[k]; delete S.entries[k]; delete S.entriesLoaded[k]; }
+  });
+}
+
+// ================================================================
+// Race preparation + result recording
+// ================================================================
+const preparing = {};
+function ensureRace(slot) {
+  const k = String(slot);
+  if (S.races[k] || preparing[k] || !S.entriesLoaded[k]) return;
+  const t = serverNow();
+  if (t < closeAtOf(slot)) return;
+  const roster = rosterFrom(slot, S.entries[k]);
+  if (roster.length < MIN_PLAYERS) { S.races[k] = { status: 'canceled', count: roster.length, roster }; renderAll(); return; }
+  const round = drandRoundAfter(closeAtOf(slot));
+  if (t < drandRoundTime(round) + 1500) return; // randomness not published yet
+  preparing[k] = true;
+  computeSlot(slot, S.entries[k]).then((c) => {
+    S.races[k] = c;
+    renderAll();
+  }).catch((e) => {
+    console.warn('drand fetch failed, retrying', e);
+    S.drandError = true; renderStatus();
+  }).finally(() => { setTimeout(() => { delete preparing[k]; }, 3000); });
+}
+
+const recorded = {};
+function maybeRecord(slot) {
+  const k = String(slot);
+  const c = S.races[k];
+  if (!c || c.status !== 'ready' || recorded[k] || !S.uid) return;
+  if (serverNow() < slot + c.sim.endMs) return;
+  if (S.winners[k]) { recorded[k] = true; return; }
+  recorded[k] = true;
+  writeResult(c).catch(() => { /* someone else already recorded it */ });
+}
+
+function writeResult(c, overwrite) {
+  const upd = {};
+  upd['winners/' + c.slot] = winnerRecord(c);
+  upd['results/' + c.slot] = {
+    slot: c.slot, round: c.round, randomness: c.randomness, count: c.count,
+    ranking: c.ranking.map((r) => ({ rank: r.rank, uid: r.uid, nick: r.nick, species: r.species, time: r.time })),
+    at: fb.serverTimestamp(),
+  };
+  if (overwrite) return fb.update(fb.ref(db), upd);
+  return fb.update(fb.ref(db), upd);
+}
+
+// record recent slots that nobody had open at race time
+let backfilledFor = null;
+async function backfill() {
+  if (!fb || !S.uid) return;
+  const now = serverNow();
+  const cur = slotAtOrBefore(now);
+  if (backfilledFor === cur) return;
+  backfilledFor = cur;
+  let slot = cur;
+  for (let i = 0; i < BACKFILL_SLOTS; i++, slot -= INTERVAL) {
+    const k = String(slot);
+    if (slot === cur) continue;                    // live view records the current one
+    if (S.winners[k]) continue;
+    try { if (localStorage.getItem('pd_chk_' + k)) continue; } catch (e) { /* ignore */ }
+    try {
+      const snap = await fb.get(fb.ref(db, 'entries/' + k));
+      const c = await computeSlot(slot, snap.val() || {});
+      if (c.status === 'ready') await writeResult(c).catch(() => {});
+      try { localStorage.setItem('pd_chk_' + k, '1'); } catch (e) { /* ignore */ }
+    } catch (e) { console.warn('backfill skipped', k, e); }
+  }
+}
+
+// recompute shown winners from the stored roster + public randomness
+const verifying = {};
+async function verifyHistory() {
+  if (!fb) return;
+  const keys = Object.keys(S.winners).sort((a, b) => b - a).slice(0, VERIFY_SHOW);
+  for (const k of keys) {
+    if (S.verified[k] || verifying[k]) continue;
+    try {
+      const c = localStorage.getItem('pd_ver_' + k);
+      if (c) { S.verified[k] = JSON.parse(c); continue; }
+    } catch (e) { /* ignore */ }
+    verifying[k] = true;
+    try {
+      const snap = await fb.get(fb.ref(db, 'entries/' + k));
+      const c = await computeSlot(Number(k), snap.val() || {});
+      const v = c.status === 'ready' ? winnerRecord(c) : { canceled: true, count: c.count };
+      S.verified[k] = v;
+      try { localStorage.setItem('pd_ver_' + k, JSON.stringify(v)); } catch (e) { /* ignore */ }
+    } catch (e) { console.warn('verify later', k, e); }
+    delete verifying[k];
+  }
+  renderHistory();
+}
+
 // ================================================================
 // Player actions
 // ================================================================
+function nickKey(nick) { return encodeURIComponent(nick.toLowerCase()).replace(/\./g, '%2E'); }
+function cleanText(s, max) { return String(s || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, max); }
+function errText(e) { const c = (e && (e.code || e.message)) || ''; return /permission/i.test(c) ? 'PERMISSION' : c; }
+function rand01() { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; }
+
+let toastTimer = null;
+function toast(text) {
+  const t = $('toast'); t.textContent = text; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
 async function doLogin(nickRaw) {
   const nick = cleanText(nickRaw, 20);
   if (!nick) { $('loginError').textContent = '닉네임을 입력해 주세요.'; return; }
@@ -679,147 +804,110 @@ async function doLogin(nickRaw) {
     hideLogin();
   } catch (e) {
     $('loginError').textContent = errText(e) === 'PERMISSION' ? '이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해 주세요.' : '입장 실패: ' + errText(e);
-  } finally {
-    $('loginSubmit').disabled = false;
-  }
+  } finally { $('loginSubmit').disabled = false; }
+}
+
+function upcomingSlot() { return slotAtOrBefore(serverNow()) + INTERVAL; }
+function myEntry(slot) { const o = S.entries[String(slot)]; return o && S.uid ? o[S.uid] || null : null; }
+
+async function doJoin() {
+  if (!S.me) { showLogin(true); return; }
+  const slot = upcomingSlot();
+  if (serverNow() >= closeAtOf(slot) - 1000) { toast('이번 경기 참가는 마감되었습니다.'); return; }
+  if (myEntry(slot)) { toast('이미 참가했습니다.'); return; }
+  const count = Object.keys(S.entries[String(slot)] || {}).length;
+  if (count >= MAX_PLAYERS) { toast('참가 인원이 가득 찼습니다. (최대 ' + MAX_PLAYERS + '명)'); return; }
+  const entry = {
+    nick: S.me.nick,
+    species: 1 + Math.floor(rand01() * SPECIES),
+    color: Math.floor(rand01() * COLORS.length),
+    at: fb.serverTimestamp(),
+    closeAt: closeAtOf(slot),
+  };
+  $('joinRaceBtn').disabled = true;
+  try {
+    await fb.set(fb.ref(db, 'entries/' + slot + '/' + S.uid), entry);
+    toast('참가 완료! ' + S.names[entry.species - 1] + ' 캐릭터가 생성되었습니다.');
+  } catch (e) {
+    toast(errText(e) === 'PERMISSION' ? '참가할 수 없습니다. (마감되었거나 권한 없음)' : '참가 실패: ' + errText(e));
+  } finally { $('joinRaceBtn').disabled = false; renderEntries(); }
+}
+
+async function doLeave() {
+  const slot = upcomingSlot();
+  if (!myEntry(slot)) return;
+  if (serverNow() >= closeAtOf(slot)) { toast('마감 후에는 취소할 수 없습니다.'); return; }
+  try { await fb.remove(fb.ref(db, 'entries/' + slot + '/' + S.uid)); toast('참가를 취소했습니다.'); }
+  catch (e) { toast('취소 실패: ' + errText(e)); }
 }
 
 async function doLogout() {
   if (!S.me) return;
-  if (currentRace()) { toast('레이스 진행 중이거나 결과 발표 중에는 나갈 수 없습니다.'); return; }
   const upd = {};
-  const lane = myLane();
-  if (lane >= 0) { upd['picks/' + (lane + 1)] = null; upd['userPick/' + S.uid] = null; }
+  const slot = upcomingSlot();
+  if (myEntry(slot) && serverNow() < closeAtOf(slot)) upd['entries/' + slot + '/' + S.uid] = null;
   upd['nicks/' + nickKey(S.me.nick)] = null;
   upd['users/' + S.uid] = null;
   try { await fb.update(fb.ref(db), upd); } catch (e) { toast('나가기 실패: ' + errText(e)); }
-}
-
-async function doPick(lane1) {
-  if (!S.me) { showLogin(true); return; }
-  if (S.phase !== 'waiting') { toast('지금은 말을 선택할 수 없습니다.'); return; }
-  const prev = myLane();
-  if (prev === lane1 - 1) return;
-  const upd = {};
-  if (prev >= 0) upd['picks/' + (prev + 1)] = null;
-  upd['picks/' + lane1] = { uid: S.uid, nick: S.me.nick, at: fb.serverTimestamp() };
-  upd['userPick/' + S.uid] = String(lane1);
-  try {
-    await fb.update(fb.ref(db), upd);
-  } catch (e) {
-    toast(errText(e) === 'PERMISSION' ? lane1 + '번은 이미 다른 플레이어가 선점했습니다.' : '선택 실패: ' + errText(e));
-  }
-}
-
-async function doUnpick() {
-  const lane = myLane();
-  if (lane < 0) return;
-  const upd = {};
-  upd['picks/' + (lane + 1)] = null;
-  upd['userPick/' + S.uid] = null;
-  try { await fb.update(fb.ref(db), upd); } catch (e) { toast('취소 실패: ' + errText(e)); }
 }
 
 // ================================================================
 // Admin actions
 // ================================================================
 async function adminUpdate(upd, okMsg) {
-  try { await fb.update(fb.ref(db), upd); if (okMsg) toast(okMsg); }
-  catch (e) { toast(errText(e) === 'PERMISSION' ? '권한이 없습니다. 관리자 이메일 설정(config.js, 규칙)을 확인하세요.' : '실패: ' + errText(e)); }
+  try { await fb.update(fb.ref(db), upd); if (okMsg) toast(okMsg); return true; }
+  catch (e) { toast(errText(e) === 'PERMISSION' ? '권한이 없습니다. 관리자 이메일 설정(config.js, 규칙)을 확인하세요.' : '실패: ' + errText(e)); return false; }
 }
-
-async function adminStart() {
-  if (currentRace()) { toast('이미 레이스가 있습니다. 새 라운드를 먼저 준비하세요.'); return; }
-  const taken = takenCount();
-  if (taken < LANES && !confirm('현재 ' + taken + '/8 마리만 선점되었습니다. 그래도 레이스를 시작할까요?')) return;
-  const sim = simulateRace();
-  const ranking = sim.order.map((lane, idx) => {
-    const p = pickOf(lane);
-    return { rank: idx + 1, lane: lane + 1, name: S.names[lane], nick: p ? p.nick : '', time: sim.times[lane] };
-  });
-  const histKey = fb.push(fb.ref(db, 'history')).key;
-  const raceId = histKey;
-  const race = {
-    id: raceId,
-    round: S.room.round,
-    createdAt: fb.serverTimestamp(),
-    countdownMs: COUNTDOWN_MS,
-    tickMs: TICK_MS,
-    endMs: sim.endMs,
-    frames: sim.frames,
-    fx: sim.fx,
-    times: sim.times,
-    order: sim.order,
-    ranking,
-    historyKey: histKey,
-  };
-  const upd = {};
-  upd['room/race'] = race;
-  upd['room/round'] = S.room.round;
-  upd['history/' + histKey] = {
-    round: S.room.round,
-    createdAt: fb.serverTimestamp(),
-    revealMs: COUNTDOWN_MS + sim.endMs,
-    winner: ranking[0],
-  };
-  await adminUpdate(upd);
-  $('adminOverlay').classList.remove('show');
+function adminKick(slot, uid, nick) {
+  if (!confirm(nick + ' 님을 이번 경기 참가자에서 제외할까요?')) return;
+  adminUpdate({ ['entries/' + slot + '/' + uid]: null }, nick + ' 님을 제외했습니다.');
 }
-
-function adminAbort() {
-  const r = currentRace();
-  if (!r) { toast('진행 중인 레이스가 없습니다.'); return; }
-  if (!confirm('레이스를 취소하고 대기 상태로 돌아갈까요? (선점은 유지, 이 판의 기록은 삭제)')) return;
-  const upd = { 'room/race': null };
-  if (r.historyKey) upd['history/' + r.historyKey] = null;
-  adminUpdate(upd, '레이스를 취소했습니다.');
-}
-
-function adminResetPicks() {
-  if (!confirm('모든 말 선점 상태를 초기화할까요?')) return;
-  adminUpdate({ picks: null, userPick: null }, '선점을 초기화했습니다.');
-}
-
-function adminNewRound() {
-  if (S.phase === 'countdown' || S.phase === 'racing') { toast('레이스 진행 중에는 새 라운드를 준비할 수 없습니다.'); return; }
-  if (!confirm('새 라운드를 준비할까요? (선점 초기화 + 대기 상태로 전환)')) return;
-  const next = currentRace() ? S.room.round + 1 : S.room.round;
-  adminUpdate({ 'room/race': null, 'room/round': next, picks: null, userPick: null }, '라운드 ' + next + ' 준비 완료');
-}
-
-function adminClearNicks() {
-  if (currentRace()) { toast('먼저 새 라운드를 준비한 뒤 실행하세요.'); return; }
-  if (!confirm('등록된 모든 닉네임과 선점을 삭제할까요? 참가자들은 닉네임을 다시 입력해야 합니다.')) return;
-  adminUpdate({ nicks: null, users: null, picks: null, userPick: null }, '닉네임을 모두 초기화했습니다.');
-}
-
-function adminRelease(lane1) {
-  const p = S.picks[lane1];
-  if (!p) return;
-  const upd = {};
-  upd['picks/' + lane1] = null;
-  upd['userPick/' + p.uid] = null;
-  adminUpdate(upd);
-}
-
-function adminRename(lane1, name) {
+function adminRename(sp, name) {
   const n = cleanText(name, 16);
   if (!n) { toast('이름을 입력해 주세요.'); return; }
-  adminUpdate({ ['config/names/' + lane1]: n }, lane1 + '번 이름을 변경했습니다.');
+  adminUpdate({ ['config/names/' + sp]: n }, sp + '번 이름을 변경했습니다.');
 }
-
+function adminClearNicks() {
+  if (!confirm('등록된 모든 닉네임을 삭제할까요? 참가자들은 닉네임을 다시 입력해야 합니다. (경기 참가 명단과 우승 기록은 유지됩니다)')) return;
+  adminUpdate({ nicks: null, users: null }, '닉네임을 모두 초기화했습니다.');
+}
+async function adminVerify() {
+  const out = $('verifyOut');
+  out.textContent = '검증 중... (최근 7일)';
+  const now = serverNow();
+  let slot = slotAtOrBefore(now);
+  const total = Math.ceil(7 * 24 * 3600000 / INTERVAL);
+  let ok = 0, fixed = 0, canceled = 0, failed = 0;
+  for (let i = 0; i < total; i++, slot -= INTERVAL) {
+    if (now < slot + 5 * 60000) continue;
+    const k = String(slot);
+    try {
+      const [es, ws] = await Promise.all([fb.get(fb.ref(db, 'entries/' + k)), fb.get(fb.ref(db, 'winners/' + k))]);
+      const c = await computeSlot(slot, es.val() || {});
+      const w = ws.val();
+      if (c.status !== 'ready') {
+        if (w) { await fb.update(fb.ref(db), { ['winners/' + k]: null, ['results/' + k]: null }); fixed++; } else canceled++;
+        continue;
+      }
+      if (w && w.uid === c.ranking[0].uid && w.round === c.round) { ok++; continue; }
+      await writeResult(c, true); fixed++;
+      try { localStorage.removeItem('pd_ver_' + k); } catch (e) { /* ignore */ }
+      delete S.verified[k];
+    } catch (e) { failed++; console.warn(e); }
+    out.textContent = '검증 중... 정상 ' + ok + ' / 복구 ' + fixed + ' / 미진행 ' + canceled + ' / 실패 ' + failed;
+  }
+  out.textContent = '완료: 정상 ' + ok + '건, 복구 ' + fixed + '건, 미진행(인원 부족 또는 참가자 없음) ' + canceled + '회차' + (failed ? ', 실패 ' + failed + '건 (잠시 후 다시 시도)' : '');
+  verifyHistory();
+}
 async function adminLogin(email, pw) {
   $('adminError').textContent = '';
   try {
     await fb.signInWithEmailAndPassword(auth, email, pw);
-    if (email.toLowerCase() !== String(ADMIN_EMAIL).toLowerCase()) {
-      $('adminError').textContent = '로그인은 되었지만 config.js 의 ADMIN_EMAIL 과 다른 계정입니다.';
-    }
+    if (!isAdminEmail(email)) $('adminError').textContent = '로그인은 되었지만 config.js 의 ADMIN_EMAILS 목록에 없는 계정입니다.';
   } catch (e) {
     $('adminError').textContent = '로그인 실패: 이메일 또는 비밀번호를 확인하세요. (' + (e.code || e.message) + ')';
   }
 }
-
 async function adminLogout() {
   try { await fb.signOut(auth); } catch (e) { /* ignore */ }
   $('adminPw').value = '';
@@ -827,18 +915,166 @@ async function adminLogout() {
 }
 
 // ================================================================
+// View model: what the screen shows right now
+// ================================================================
+function computeView() {
+  if (!fb || !S.ready) return { phase: 'connecting', lanes: [] };
+  const t = serverNow();
+  const prev = slotAtOrBefore(t);
+  const next = prev + INTERVAL;
+  syncEntrySubs(prev, next);
+  ensureRace(prev); ensureRace(next);
+  maybeRecord(prev);
+
+  const pk = String(prev);
+  const pr = S.races[pk];
+  const since = t - prev;
+  if (pr && pr.status === 'ready' && since < pr.sim.endMs + RESULT_HOLD) {
+    const lanes = pr.roster;
+    if (since < 0) return { phase: 'countdown', slot: prev, next, lanes };
+    return { phase: since < pr.sim.endMs ? 'racing' : 'finished', slot: prev, next, lanes, race: pr, elapsed: since };
+  }
+  if (pr && pr.status === 'canceled' && pr.count > 0 && since < CANCEL_HOLD) return { phase: 'canceled', slot: prev, next, lanes: pr.roster, count: pr.count };
+  if (!pr && S.entriesLoaded[pk] && since < 10 * 60000) {
+    const r = rosterFrom(prev, S.entries[pk]);
+    if (r.length >= MIN_PLAYERS) return { phase: 'draw', slot: prev, next, lanes: r };
+    if (r.length > 0 && since < CANCEL_HOLD) return { phase: 'canceled', slot: prev, next, lanes: r, count: r.length };
+  }
+
+  // upcoming race
+  const nk = String(next);
+  const nr = S.races[nk];
+  const live = rosterFrom(next, S.entries[nk]).length ? rosterFrom(next, S.entries[nk]) : liveList(next);
+  if (t < closeAtOf(next)) return { phase: 'open', slot: next, next, lanes: liveList(next) };
+  if (nr && nr.status === 'canceled' && nr.count > 0) return { phase: 'canceled', slot: next, next: next + INTERVAL, lanes: nr.roster, count: nr.count, early: true };
+  if (t < next - COUNTDOWN) return { phase: 'closed', slot: next, next, lanes: live };
+  return { phase: nr && nr.status === 'ready' ? 'countdown' : 'draw', slot: next, next, lanes: live };
+}
+
+// entries for the open slot in join order (including ones still waiting for a server timestamp)
+function liveList(slot) {
+  const o = S.entries[String(slot)] || {};
+  return Object.keys(o).map((uid) => ({ uid, nick: String(o[uid].nick || ''), species: clampInt(o[uid].species, 1, SPECIES), color: clampInt(o[uid].color, 0, COLORS.length - 1), at: typeof o[uid].at === 'number' ? o[uid].at : Infinity }))
+    .sort((a, b) => (a.at - b.at) || (a.uid < b.uid ? -1 : 1)).slice(0, MAX_PLAYERS);
+}
+
+function raceSnapshot(v) {
+  const n = v.lanes.length;
+  const zero = () => new Array(n).fill(0);
+  if (!v.race) return { pos: zero(), speed: zero(), fx: zero(), order: [] };
+  const sim = v.race.sim;
+  const last = sim.frames.length - 1;
+  const el = v.phase === 'finished' ? Infinity : v.elapsed;
+  const f = el / TICK_MS;
+  const i = Math.min(last, Math.floor(f));
+  const j = Math.min(last, i + 1);
+  const k = i === j ? 0 : f - i;
+  const pos = [], speed = [];
+  for (let l = 0; l < n; l++) {
+    const a = sim.frames[i][l], b = sim.frames[j][l];
+    pos.push(a + (b - a) * k); speed.push(i === j ? 0 : b - a);
+  }
+  const fx = Array.from(sim.fx[j] || zero());
+  const order = sim.order.filter((l) => sim.times[l] * 1000 <= el);
+  return { pos, speed, fx, order };
+}
+
+function myLaneIn(v) { if (!S.uid || !v || !v.lanes) return -1; return v.lanes.findIndex((r) => r.uid === S.uid); }
+
+// ================================================================
+// Character images (runners/runnerN.png per species) with fallback
+// ================================================================
+const runnerImgs = [];
+for (let i = 0; i < SPECIES; i++) {
+  const entry = { img: new Image(), ok: false };
+  entry.img.onload = () => { if (entry.img.naturalWidth > 0) { entry.ok = true; renderEntries(); } };
+  entry.img.onerror = () => { entry.ok = false; };
+  entry.img.src = 'runners/runner' + (i + 1) + '.png';
+  runnerImgs.push(entry);
+}
+
+// cute fallback character drawn on any 2D context
+function drawBlob(c, x, y, colorIdx, num, squash, step, fx, blinkSeed) {
+  const col = COLORS[colorIdx], dark = DARKS[colorIdx];
+  const rw = 21 * (1 + squash * 0.12), rh = 21 * (1 - squash * 0.12);
+  c.save(); c.translate(x, y);
+  c.fillStyle = dark;
+  c.beginPath(); c.ellipse(-8 + step * 4, rh - 2, 6, 4, 0, 0, 6.28); c.fill();
+  c.beginPath(); c.ellipse(8 - step * 4, rh - 2, 6, 4, 0, 0, 6.28); c.fill();
+  c.strokeStyle = dark; c.lineWidth = 4; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(-rw + 2, 2); c.quadraticCurveTo(-rw - 12, -4 + step * 3, -rw - 8, -14); c.stroke();
+  c.fillStyle = col; c.strokeStyle = '#2b2d42'; c.lineWidth = 2.5;
+  c.beginPath(); c.moveTo(-12, -rh + 6); c.lineTo(-16, -rh - 12); c.lineTo(-3, -rh + 2); c.closePath(); c.fill(); c.stroke();
+  c.beginPath(); c.moveTo(4, -rh + 2); c.lineTo(14, -rh - 13); c.lineTo(15, -rh + 7); c.closePath(); c.fill(); c.stroke();
+  c.beginPath(); c.ellipse(0, 0, rw, rh, 0, 0, 6.28); c.fillStyle = col; c.fill(); c.stroke();
+  c.beginPath(); c.ellipse(-2, 7, rw * 0.55, rh * 0.45, 0, 0, 6.28); c.fillStyle = 'rgba(255,255,255,.55)'; c.fill();
+  const blink = (Math.floor(performance.now() / 120 + (blinkSeed || 0) * 7) % 40) === 0;
+  c.fillStyle = '#2b2d42';
+  if (fx === 2 || blink) {
+    c.lineWidth = 2; c.beginPath(); c.moveTo(3, -5); c.lineTo(9, -3); c.moveTo(12, -3); c.lineTo(18, -5); c.stroke();
+  } else {
+    c.beginPath(); c.ellipse(6, -4, 3, 4, 0, 0, 6.28); c.fill();
+    c.beginPath(); c.ellipse(15, -4, 3, 4, 0, 0, 6.28); c.fill();
+    c.fillStyle = '#fff'; c.fillRect(6, -7, 1.6, 1.6); c.fillRect(15, -7, 1.6, 1.6);
+  }
+  c.fillStyle = 'rgba(255,100,120,.55)';
+  c.beginPath(); c.ellipse(2, 3, 3.5, 2.2, 0, 0, 6.28); c.fill();
+  c.beginPath(); c.ellipse(19, 3, 3, 2, 0, 0, 6.28); c.fill();
+  c.strokeStyle = '#2b2d42'; c.lineWidth = 1.6;
+  c.beginPath(); c.arc(11, 2, 2.4, 0.2, Math.PI - 0.2); c.stroke();
+  if (num != null) {
+    c.beginPath(); c.arc(-9, 6, 7.5, 0, 6.28); c.fillStyle = '#fff'; c.fill(); c.lineWidth = 1.8; c.strokeStyle = '#2b2d42'; c.stroke();
+    c.fillStyle = '#2b2d42'; c.font = '11px Jua, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(String(num), -9, 6.5);
+  }
+  c.restore();
+}
+
+function drawCharacter(c, x, y, r, num, squash, step, fx, seed) {
+  const im = runnerImgs[r.species - 1];
+  if (im && im.ok) {
+    const img = im.img, maxS = 54;
+    const sc = Math.min(maxS / img.naturalWidth, maxS / img.naturalHeight);
+    const w = img.naturalWidth * sc * (1 + squash * 0.1), h = img.naturalHeight * sc * (1 - squash * 0.1);
+    c.drawImage(img, x - w / 2, y + 22 - h, w, h);
+    if (num != null) {
+      c.beginPath(); c.arc(x - w / 2 + 4, y + 14, 8, 0, 6.28); c.fillStyle = COLORS[r.color]; c.fill();
+      c.lineWidth = 2; c.strokeStyle = '#2b2d42'; c.stroke();
+      c.fillStyle = '#2b2d42'; c.font = '11px Jua, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(String(num), x - w / 2 + 4, y + 14.5);
+    }
+  } else {
+    drawBlob(c, x, y, r.color, num, squash, step, fx, seed);
+  }
+}
+
+function paintThumb(cv, r) {
+  const dpr = 2;
+  const s = cv.clientWidth || cv.width / dpr || 64;
+  cv.width = s * dpr; cv.height = s * dpr;
+  const c = cv.getContext('2d');
+  c.setTransform(dpr * s / 64, 0, 0, dpr * s / 64, 0, 0);
+  c.clearRect(0, 0, 64, 64);
+  drawCharacter(c, 32, 34, r, null, 0, 0, 0, 0);
+}
+
+// ================================================================
 // DOM rendering
 // ================================================================
+function safe(f) { try { f(); } catch (e) { console.error('render error', f.name, e); } }
 function renderAll() {
-  S.phase = phaseInfo().phase;
-  renderHeader(); renderPicks(); renderAdmin(); renderStatus(); renderHistory();
+  for (const f of [renderHeader, renderEntries, renderStatus, renderHistory, renderAdmin]) {
+    try { f(); } catch (e) { console.error('render error', f.name, e); }
+  }
 }
 
 function renderHeader() {
-  $('roundChip').textContent = '라운드 ' + (S.room ? S.room.round : 1);
+  const v = S.view;
   const pc = $('phaseChip');
-  pc.className = 'chip phase-' + (S.phase === 'connecting' ? 'waiting' : S.phase);
-  pc.textContent = PHASE_TEXT[S.phase] || S.phase;
+  pc.className = 'chip phase-' + (PHASE_CHIP[v.phase] || 'waiting');
+  pc.textContent = PHASE_TEXT[v.phase] || v.phase;
+  const nextStart = v.phase === 'open' || v.phase === 'closed' || v.phase === 'countdown' ? v.slot : (v.next || upcomingSlot());
+  $('nextChip').textContent = '다음 경기 ' + (fb && S.ready ? fmtKST(nextStart) : '--:--');
   $('onlineChip').textContent = '접속 ' + S.online + '명';
   $('adminBadge').style.display = S.isAdmin ? 'inline-block' : 'none';
   if (S.me) { $('meBox').style.display = 'flex'; $('meNick').textContent = S.me.nick; }
@@ -846,181 +1082,176 @@ function renderHeader() {
   $('joinBtn').style.display = !S.me && S.isAdmin ? 'inline-block' : 'none';
 }
 
-function fillThumb(el, idx) {
-  const entry = runnerImgs[idx];
-  el.textContent = '';
-  if (entry && entry.ok) {
-    el.classList.add('has-img');
-    el.style.backgroundImage = 'url(' + entry.img.src + ')';
-    el.style.backgroundColor = '';
-  } else {
-    el.classList.remove('has-img');
-    el.style.backgroundImage = '';
-    el.style.backgroundColor = LANE_COLORS[idx];
-    el.textContent = String(idx + 1);
+let entriesKey = '';
+function renderEntries() {
+  if (!fb || !S.ready) return;
+  const slot = upcomingSlot();
+  const list = liveList(slot);
+  const t = serverNow();
+  const open = t < closeAtOf(slot);
+  const mine = myEntry(slot);
+  // header text
+  $('joinTitle').textContent = '다음 경기 ' + fmtKST(slot) + ' 출발';
+  const n = list.length;
+  $('joinInfo').innerHTML = '';
+  const b = document.createElement('b'); b.textContent = '참가 ' + n + '명';
+  $('joinInfo').append(b, document.createTextNode(' / 최소 ' + MIN_PLAYERS + '명 (최대 ' + MAX_PLAYERS + '명) · 마감 ' + fmtKST(closeAtOf(slot))));
+  $('meter').classList.toggle('low', n < MIN_PLAYERS);
+  $('meterBar').style.width = Math.min(100, n / MIN_PLAYERS * 100) + '%';
+  const btn = $('joinRaceBtn');
+  if (!open) { btn.textContent = '참가 마감'; btn.disabled = true; btn.className = 'btn big'; }
+  else if (mine) { btn.textContent = '참가 취소'; btn.disabled = false; btn.className = 'btn big'; }
+  else { btn.textContent = '참가하기'; btn.disabled = n >= MAX_PLAYERS; btn.className = 'btn primary big'; }
+
+  const key = slot + '|' + open + '|' + S.isAdmin + '|' + S.uid + '|' + S.names.join(',') + '|' + runnerImgs.map((r) => r.ok).join('') + '|' +
+    list.map((r) => r.uid + r.nick + r.species + r.color).join(',');
+  if (key === entriesKey) return;
+  entriesKey = key;
+  const grid = $('entryGrid');
+  grid.innerHTML = '';
+  if (!n) {
+    const d = document.createElement('div'); d.className = 'entry-empty';
+    d.textContent = '아직 참가자가 없습니다. 참가하기를 눌러 첫 번째 주자가 되어 보세요!';
+    grid.appendChild(d); return;
+  }
+  list.forEach((r, i) => {
+    const card = document.createElement('div');
+    card.className = 'entry' + (r.uid === S.uid ? ' mine' : '');
+    const ord = document.createElement('div'); ord.className = 'ord'; ord.textContent = (i + 1) + '번';
+    const cv = document.createElement('canvas');
+    const nk = document.createElement('div'); nk.className = 'nick'; nk.textContent = r.nick;
+    const sp = document.createElement('div'); sp.className = 'sp'; sp.textContent = S.names[r.species - 1] + (r.uid === S.uid ? ' (나)' : '');
+    card.append(ord, cv, nk, sp);
+    if (S.isAdmin && open) {
+      const x = document.createElement('button'); x.className = 'btn small ghost x'; x.textContent = '제외';
+      x.addEventListener('click', () => adminKick(slot, r.uid, r.nick));
+      card.appendChild(x);
+    }
+    grid.appendChild(card);
+    paintThumb(cv, r);
+  });
+}
+
+function renderTimer() {
+  if (!fb || !S.ready) return;
+  const slot = upcomingSlot();
+  const t = serverNow();
+  if (t < closeAtOf(slot)) { $('joinTimer').textContent = fmtDur(closeAtOf(slot) - t); $('joinTimerLabel').textContent = '참가 마감까지'; }
+  else { $('joinTimer').textContent = fmtDur(slot - t); $('joinTimerLabel').textContent = '출발까지'; }
+}
+
+function renderStatus() {
+  const v = S.view;
+  const el = $('statusMsg');
+  const me = myLaneIn(v);
+  const meName = me >= 0 ? (me + 1) + '번 ' + v.lanes[me].nick : '';
+  switch (v.phase) {
+    case 'connecting': el.textContent = '연결하는 중...'; break;
+    case 'open': {
+      const mine = myEntry(v.slot);
+      if (!S.me) el.textContent = S.isAdmin ? '관리자 모드입니다.' : '닉네임을 입력하고 입장해 주세요.';
+      else if (mine) el.textContent = '참가 완료! ' + fmtKST(v.slot) + ' 경기에 ' + S.names[clampInt(mine.species, 1, SPECIES) - 1] + ' 캐릭터로 출전합니다.';
+      else el.textContent = fmtKST(v.slot) + ' 경기 참가 접수 중입니다. 참가하기를 눌러 주세요!';
+      break;
+    }
+    case 'closed': el.textContent = '참가가 마감되었습니다. ' + fmtKST(v.slot) + ' 출발 준비 중...'; break;
+    case 'countdown': el.textContent = '곧 출발합니다!'; break;
+    case 'draw': el.textContent = S.drandError ? '공용 난수 서버에 연결하는 중입니다. 잠시만 기다려 주세요...' : '추첨 준비 중...'; break;
+    case 'racing': el.textContent = me >= 0 ? meName + ' 힘내라!' : '레이스 진행 중!'; break;
+    case 'finished': {
+      const w = v.race.ranking[0];
+      el.textContent = '우승: ' + w.nick + ' 님 (' + S.names[w.species - 1] + ') 축하합니다! 다음 경기 ' + fmtKST(v.next);
+      break;
+    }
+    case 'canceled': el.textContent = '참가 인원 부족(' + v.count + '/' + MIN_PLAYERS + ')으로 ' + fmtKST(v.slot) + ' 경기는 취소되었습니다. 다음 경기 ' + fmtKST(v.next); break;
+    default: el.textContent = '';
   }
 }
 
-function renderPicks() {
-  const grid = $('pickGrid');
-  if (!grid) return;
-  const mine = myLane();
-  const waiting = S.phase === 'waiting';
-  grid.innerHTML = '';
-  for (let idx = 0; idx < LANES; idx++) {
-    const lane1 = idx + 1;
-    const p = pickOf(idx);
-    const isMine = idx === mine;
-    const card = document.createElement('div');
-    card.className = 'pick';
-    if (isMine) card.classList.add('mine');
-    else if (p) card.classList.add('taken');
-    else if (waiting) card.classList.add('available');
-    else card.classList.add('locked');
-
-    const num = document.createElement('div');
-    num.className = 'num'; num.textContent = lane1; num.style.background = LANE_COLORS[idx];
-    const tag = document.createElement('div');
-    tag.className = 'tag'; tag.textContent = isMine ? '내 선택' : (p ? '선점됨' : (waiting ? '선택 가능' : '빈자리'));
-    const thumb = document.createElement('div');
-    thumb.className = 'thumb'; fillThumb(thumb, idx);
-    const name = document.createElement('div');
-    name.className = 'name'; name.textContent = lane1 + '번 ' + S.names[idx];
-    const owner = document.createElement('div');
-    owner.className = 'owner'; owner.textContent = p ? p.nick : (waiting ? '클릭해서 선점하기' : '-');
-    card.append(num, tag, thumb, name, owner);
-
-    if (isMine && waiting) {
-      const c = document.createElement('button');
-      c.className = 'btn small ghost cancel'; c.textContent = '선택 취소';
-      c.addEventListener('click', (e) => { e.stopPropagation(); doUnpick(); });
-      card.appendChild(c);
-    }
-    if (!p && waiting) card.addEventListener('click', () => doPick(lane1));
-    grid.appendChild(card);
-  }
-  $('pickCount').textContent = '(' + takenCount() + ' / ' + LANES + ')';
+function renderLiveRank(v, snap) {
+  const box = $('liveRank');
+  box.innerHTML = '';
+  if (v.phase !== 'racing' && v.phase !== 'finished') return;
+  const n = v.lanes.length;
+  const fin = snap.order;
+  const rest = [];
+  for (let l = 0; l < n; l++) if (fin.indexOf(l) < 0) rest.push(l);
+  rest.sort((a, b) => snap.pos[b] - snap.pos[a]);
+  fin.concat(rest).slice(0, 8).forEach((l, k) => {
+    const s = document.createElement('span');
+    s.style.background = COLORS[v.lanes[l].color];
+    s.textContent = (k + 1) + '위 ' + v.lanes[l].nick;
+    box.appendChild(s);
+  });
 }
 
 function renderHistory() {
   const ul = $('historyList');
-  const now = serverNow();
-  const list = Object.keys(S.history).map((k) => S.history[k])
-    .filter((h) => h && typeof h.createdAt === 'number' && now >= h.createdAt + (h.revealMs || 0) && h.winner)
-    .sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
+  if (!ul) return;
+  const keys = Object.keys(S.winners).sort((a, b) => b - a).slice(0, VERIFY_SHOW);
   ul.innerHTML = '';
-  if (!list.length) {
-    const li0 = document.createElement('li'); li0.className = 'empty'; li0.textContent = '아직 기록이 없습니다.'; ul.appendChild(li0); return;
-  }
-  list.forEach((h) => {
+  let shown = 0;
+  keys.forEach((k) => {
+    const v = S.verified[k];
+    if (v && v.canceled) return;
+    const w = v || S.winners[k];
+    if (!w || !w.nick) return;
+    shown++;
     const li = document.createElement('li');
-    const b = document.createElement('b'); b.textContent = '라운드 ' + h.round + ' - ' + h.winner.lane + '번 ' + h.winner.name;
-    const d = document.createElement('div'); d.textContent = '우승자: ' + (h.winner.nick || '선점자 없음');
-    li.append(b, d); ul.appendChild(li);
+    const when = document.createElement('div'); when.className = 'when'; when.textContent = fmtKST(Number(k), true) + ' 경기 · ' + (w.count || '?') + '명 참가';
+    const chk = document.createElement('span'); chk.className = 'chk';
+    if (v) chk.textContent = '검증됨'; else { chk.textContent = '확인 중'; chk.style.color = 'var(--muted)'; }
+    when.appendChild(chk);
+    const b = document.createElement('b'); b.textContent = '우승 ' + w.nick;
+    const d = document.createElement('div'); d.textContent = S.names[clampInt(w.species, 1, SPECIES) - 1] + (typeof w.time === 'number' ? ' · ' + w.time.toFixed(2) + '초' : '');
+    li.append(when, b, d); ul.appendChild(li);
   });
-}
-
-function renderStatus() {
-  const el = $('statusMsg');
-  const info = phaseInfo();
-  const mine = myLane();
-  const taken = takenCount();
-  if (info.phase === 'connecting') el.textContent = '연결하는 중...';
-  else if (info.phase === 'waiting') {
-    if (!S.me) el.textContent = S.isAdmin ? '관리자 모드입니다. 참가하려면 닉네임을 입력하세요.' : '닉네임을 입력하고 입장해 주세요.';
-    else if (mine < 0) el.textContent = '아래에서 응원할 포켓몬을 선점하세요! (' + taken + '/8 선점됨)';
-    else el.textContent = (mine + 1) + '번 ' + S.names[mine] + ' 선점 완료! 관리자의 시작을 기다리는 중... (' + taken + '/8)';
-  } else if (info.phase === 'countdown') {
-    el.textContent = '곧 출발합니다! ' + info.countdown;
-  } else if (info.phase === 'racing') {
-    el.textContent = mine >= 0 ? ((mine + 1) + '번 ' + S.names[mine] + ' 힘내라!') : '레이스 진행 중!';
-  } else if (info.phase === 'finished') {
-    const r = currentRace();
-    const w = r && toArray(r.ranking)[0];
-    if (w) el.textContent = '우승: ' + w.lane + '번 ' + w.name + ' / ' + (w.nick ? w.nick + '님 축하합니다!' : '선점자 없음');
-  }
-}
-
-function renderLiveRank(snap) {
-  const box = $('liveRank');
-  box.innerHTML = '';
-  if (S.phase !== 'racing' && S.phase !== 'finished') return;
-  const fin = snap.order;
-  const rest = [];
-  for (let l = 0; l < LANES; l++) if (fin.indexOf(l) < 0) rest.push(l);
-  rest.sort((a, b) => snap.pos[b] - snap.pos[a]);
-  fin.concat(rest).forEach((l, k) => {
-    const s = document.createElement('span');
-    s.style.background = LANE_COLORS[l];
-    s.textContent = (k + 1) + '위 ' + (l + 1) + '번';
-    box.appendChild(s);
-  });
+  if (!shown) { const li0 = document.createElement('li'); li0.className = 'empty'; li0.textContent = '아직 기록이 없습니다.'; ul.appendChild(li0); }
 }
 
 function renderAdmin() {
   $('adminLogin').style.display = S.isAdmin ? 'none' : 'block';
   $('adminPanel').style.display = S.isAdmin ? 'block' : 'none';
   if (!S.isAdmin) return;
-  $('adminInfo').textContent = '라운드 ' + S.room.round + ' / 상태: ' + (PHASE_TEXT[S.phase] || S.phase) + ' / 선점 ' + takenCount() + '/8 / 접속자 ' + S.online + '명';
-  const busy = S.phase === 'countdown' || S.phase === 'racing';
-  $('aStart').disabled = S.phase !== 'waiting';
-  $('aResetPicks').disabled = S.phase !== 'waiting';
-  $('aNewRound').disabled = busy;
-  $('aAbort').disabled = !busy;
-  $('aClearNicks').disabled = S.phase !== 'waiting';
-
+  const slot = upcomingSlot();
+  $('adminInfo').textContent = '현재 상태: ' + (PHASE_TEXT[S.view.phase] || '') + ' / 다음 경기 ' + fmtKST(slot) + ' (마감 ' + fmtKST(closeAtOf(slot)) + ') / 참가 ' + liveList(slot).length + '명 / 접속자 ' + S.online + '명 / 일정: ' + SCH.intervalMinutes + '분 간격';
   const active = document.activeElement;
-  if (active && active.dataset && active.dataset.renameLane) return; // keep input while typing
+  if (active && active.dataset && active.dataset.renameSp) return;
   const tbody = $('adminRows');
   tbody.innerHTML = '';
-  for (let idx = 0; idx < LANES; idx++) {
-    const lane1 = idx + 1;
-    const p = pickOf(idx);
+  for (let i = 0; i < SPECIES; i++) {
+    const sp = i + 1;
     const tr = document.createElement('tr');
-    const td1 = document.createElement('td'); td1.textContent = lane1 + '번';
-    td1.style.fontFamily = 'Jua, sans-serif'; td1.style.color = LANE_DARK[idx];
+    const td1 = document.createElement('td'); td1.textContent = sp + '번';
     const td2 = document.createElement('td');
-    const inp = document.createElement('input'); inp.value = S.names[idx]; inp.maxLength = 16; inp.dataset.renameLane = lane1;
-    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { adminRename(lane1, inp.value); inp.blur(); } });
+    const inp = document.createElement('input'); inp.value = S.names[i]; inp.maxLength = 16; inp.dataset.renameSp = sp;
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { adminRename(sp, inp.value); inp.blur(); } });
     td2.appendChild(inp);
     const td3 = document.createElement('td');
     const rb = document.createElement('button'); rb.className = 'btn small'; rb.textContent = '변경';
-    rb.addEventListener('click', () => adminRename(lane1, inp.value));
+    rb.addEventListener('click', () => adminRename(sp, inp.value));
     td3.appendChild(rb);
-    const td4 = document.createElement('td'); td4.textContent = p ? p.nick : '-';
-    const td5 = document.createElement('td');
-    if (p) {
-      const xb = document.createElement('button'); xb.className = 'btn small ghost'; xb.textContent = '해제'; xb.disabled = S.phase !== 'waiting';
-      xb.addEventListener('click', () => adminRelease(lane1));
-      td5.appendChild(xb);
-    }
-    tr.append(td1, td2, td3, td4, td5);
-    tbody.appendChild(tr);
+    tr.append(td1, td2, td3); tbody.appendChild(tr);
   }
 }
 
-function showResult() {
-  const r = currentRace();
-  if (!r) return;
-  const ranking = toArray(r.ranking);
-  const w = ranking[0];
-  $('resLabel').textContent = '라운드 ' + r.round + ' 우승';
-  fillThumb($('resThumb'), w.lane - 1);
-  $('resRunner').textContent = w.lane + '번 ' + w.name;
-  const pl = $('resPlayer');
-  if (w.nick) { pl.className = 'winner-player'; pl.textContent = w.nick + ' 님 우승!'; }
-  else { pl.className = 'winner-player none'; pl.textContent = '선점한 플레이어가 없습니다'; }
+function showResult(v) {
+  const c = v.race;
+  const w = c.ranking[0];
+  $('resLabel').textContent = fmtKST(c.slot, true) + ' 경기 우승 (' + c.count + '명 참가)';
+  paintThumb($('resThumb'), w);
+  $('resPlayer').className = 'winner-player'; $('resPlayer').textContent = w.nick + ' 님 우승!';
+  $('resRunner').textContent = S.names[w.species - 1] + ' · ' + w.time.toFixed(2) + '초';
   const tb = $('resRows'); tb.innerHTML = '';
-  const mine = myLane();
-  ranking.forEach((x) => {
+  c.ranking.forEach((x) => {
     const tr = document.createElement('tr');
     if (x.rank === 1) tr.className = 'r1';
-    if (x.lane - 1 === mine) tr.classList.add('mine');
+    if (x.uid === S.uid) tr.classList.add('mine');
     const a = document.createElement('td'); a.className = 'rk'; a.textContent = x.rank + '위';
-    const b = document.createElement('td'); b.textContent = x.lane + '번 ' + x.name; b.style.color = LANE_DARK[x.lane - 1]; b.style.fontWeight = 'bold';
-    const c = document.createElement('td'); c.textContent = x.nick || '-';
-    const d = document.createElement('td'); d.textContent = typeof x.time === 'number' ? x.time.toFixed(2) + '초' : '-';
-    tr.append(a, b, c, d); tb.appendChild(tr);
+    const b = document.createElement('td'); b.textContent = x.nick; b.style.fontWeight = 'bold'; b.style.color = DARKS[x.color];
+    const cc = document.createElement('td'); cc.textContent = S.names[x.species - 1];
+    const d = document.createElement('td'); d.textContent = x.time.toFixed(2) + '초';
+    tr.append(a, b, cc, d); tb.appendChild(tr);
   });
   $('resultOverlay').classList.add('show');
 }
@@ -1039,74 +1270,75 @@ function hideLogin() { $('loginOverlay').classList.remove('show'); }
 // ================================================================
 $('loginForm').addEventListener('submit', (e) => { e.preventDefault(); doLogin($('nickInput').value); });
 $('loginCancel').addEventListener('click', hideLogin);
-$('loginAdmin').addEventListener('click', () => {
-  hideLogin();
-  $('adminOverlay').classList.add('show'); renderAdmin();
-  setTimeout(() => $('adminEmail').focus(), 50);
-});
+$('loginAdmin').addEventListener('click', () => { hideLogin(); $('adminOverlay').classList.add('show'); renderAdmin(); setTimeout(() => $('adminEmail').focus(), 50); });
 $('joinBtn').addEventListener('click', () => showLogin(true));
-$('logoutBtn').addEventListener('click', () => {
-  if (confirm('나가면 선점한 말이 해제되고 닉네임이 삭제됩니다. 나갈까요?')) doLogout();
-});
-$('adminBtn').addEventListener('click', () => {
-  $('adminOverlay').classList.add('show'); renderAdmin();
-  if (!S.isAdmin) setTimeout(() => $('adminEmail').focus(), 50);
-});
-$('adminClose').addEventListener('click', () => {
-  $('adminOverlay').classList.remove('show');
-  if (S.uid && !S.me && !S.isAdmin) showLogin(false);
-});
+$('logoutBtn').addEventListener('click', () => { if (confirm('나가면 닉네임이 삭제되고, 마감 전 참가 신청도 취소됩니다. 나갈까요?')) doLogout(); });
+$('joinRaceBtn').addEventListener('click', () => { if (myEntry(upcomingSlot())) { if (confirm('참가를 취소할까요?')) doLeave(); } else doJoin(); });
+$('adminBtn').addEventListener('click', () => { $('adminOverlay').classList.add('show'); renderAdmin(); if (!S.isAdmin) setTimeout(() => $('adminEmail').focus(), 50); });
+$('adminClose').addEventListener('click', () => { $('adminOverlay').classList.remove('show'); if (S.uid && !S.me && !S.isAdmin) showLogin(false); });
 $('adminForm').addEventListener('submit', (e) => { e.preventDefault(); if (fb) adminLogin($('adminEmail').value.trim(), $('adminPw').value); });
-$('aStart').addEventListener('click', adminStart);
-$('aResetPicks').addEventListener('click', adminResetPicks);
-$('aNewRound').addEventListener('click', adminNewRound);
-$('aAbort').addEventListener('click', adminAbort);
+$('aVerify').addEventListener('click', adminVerify);
 $('aClearNicks').addEventListener('click', adminClearNicks);
 $('aLogout').addEventListener('click', adminLogout);
 $('resClose').addEventListener('click', () => $('resultOverlay').classList.remove('show'));
-
-// ================================================================
-// Phase watcher: derives phase transitions from server time
-// ================================================================
-let lastPhase = null;
-let lastRaceId = null;
-let lastLiveRank = 0;
-function watchPhase(now, snap) {
-  const info = phaseInfo();
-  const r = currentRace();
-  const raceId = r ? r.id : null;
-  if (info.phase !== lastPhase || raceId !== lastRaceId) {
-    const prev = lastPhase;
-    lastPhase = info.phase; lastRaceId = raceId;
-    S.phase = info.phase;
-    if (info.phase === 'countdown') particles.length = 0;
-    if (info.phase === 'racing' && prev === 'countdown') S.goUntil = now + 900;
-    if (info.phase === 'finished' && r && S.shownResultId !== r.id) {
-      S.shownResultId = r.id;
-      if (prev === 'racing') {
-        burstConfetti(toArray(r.order)[0]);
-        setTimeout(() => { if (S.phase === 'finished') showResult(); }, 1300);
-      } else {
-        showResult();
-      }
-    }
-    if (info.phase !== 'finished') $('resultOverlay').classList.remove('show');
-    renderAll();
+$('guideSchedule').textContent = '경기는 한국 시간 기준 ' + (SCH.intervalMinutes % 60 === 0 ? (SCH.intervalMinutes / 60) + '시간' : SCH.intervalMinutes + '분') +
+  '마다 자동으로 출발합니다. (' + scheduleText() + ') 출발 1분 전에 참가가 마감됩니다.';
+$('guideMin').textContent = '마감 시 참가자가 ' + MIN_PLAYERS + '명 미만이면 그 회차는 취소되고 다음 회차를 기다립니다. (다음 회차에 다시 참가하기를 눌러 주세요)';
+function scheduleText() {
+  const list = [];
+  const perDay = Math.round(86400000 / INTERVAL);
+  for (let i = 0; i < Math.min(perDay, 4); i++) {
+    const m = (SCH.offsetMinutes + i * SCH.intervalMinutes) % 1440;
+    list.push(Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'));
   }
-  if (info.phase === 'countdown' && info.countdown !== S.countdownShown) {
-    S.countdownShown = info.countdown; S.countdownChangedAt = now; renderStatus();
-  }
-  if (now - lastLiveRank > 250) { lastLiveRank = now; renderLiveRank(snap); }
-  return info;
+  return list.join(', ') + (perDay > 4 ? ' ...' : '');
 }
 
 // ================================================================
-// Canvas track rendering
+// Phase watcher
+// ================================================================
+let lastPhaseKey = '';
+let lastSlow = 0;
+function tickView(now) {
+  const v = computeView();
+  S.view = v;
+  const key = v.phase + '|' + (v.slot || '');
+  if (key !== lastPhaseKey) {
+    const prevKey = lastPhaseKey;
+    lastPhaseKey = key;
+    if (v.phase === 'countdown') particles.length = 0;
+    if (v.phase === 'racing' && prevKey.indexOf('racing') < 0) S.goUntil = now + (v.elapsed < 1500 ? 900 : 0);
+    if (v.phase === 'finished' && S.shownResult !== v.slot) {
+      S.shownResult = v.slot;
+      if (prevKey.indexOf('racing') === 0) {
+        burstConfetti(v.race.sim.order[0], v.lanes.length);
+        setTimeout(() => { if (S.view.phase === 'finished') showResult(S.view); }, 1300);
+      } else showResult(v);
+    }
+    if (v.phase !== 'finished') $('resultOverlay').classList.remove('show');
+    if (v.phase !== 'draw') S.drandError = false;
+    if (S.uid && backfilledFor !== null && backfilledFor !== slotAtOrBefore(serverNow())) setTimeout(backfill, 20000 + Math.random() * 20000);
+    renderAll();
+  }
+  if (v.phase === 'countdown') {
+    const cd = Math.max(1, Math.ceil(((v.phase === 'countdown' ? v.slot : 0) - serverNow()) / 1000));
+    if (cd !== S.cdShown) { S.cdShown = cd; S.cdAt = now; }
+  }
+  if (now - lastSlow > 250) {
+    lastSlow = now;
+    safe(renderTimer); safe(renderHeader); safe(renderStatus);
+    if (v.phase === 'open') safe(renderEntries);
+  }
+  return v;
+}
+
+// ================================================================
+// Canvas track rendering (lane count follows the number of entrants)
 // ================================================================
 const cv = $('track');
 const ctx = cv.getContext('2d');
 const W = 1200, H = 640;
-const TRACK_TOP = 108, LANE_H = 58, TRACK_BOTTOM = TRACK_TOP + LANE_H * LANES;
+const TRACK_TOP = 108, TRACK_H = 464, TRACK_BOTTOM = TRACK_TOP + TRACK_H;
 const START_X = 190, FINISH_X = 1120;
 
 function setupCanvas() {
@@ -1117,17 +1349,22 @@ function setupCanvas() {
 setupCanvas();
 window.addEventListener('resize', setupCanvas);
 
-// deterministic pseudo random for static decorations
 function seeded(seed) { return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
 const sr = seeded(12345);
-const dirtSpecks = []; for (let d = 0; d < 380; d++) dirtSpecks.push({ x: START_X - 40 + sr() * (W - START_X + 40), y: TRACK_TOP + sr() * (LANE_H * LANES), r: 1 + sr() * 2.2, a: 0.08 + sr() * 0.12 });
+const dirtSpecks = []; for (let d = 0; d < 380; d++) dirtSpecks.push({ x: START_X - 40 + sr() * (W - START_X + 40), y: TRACK_TOP + sr() * TRACK_H, r: 1 + sr() * 2.2, a: 0.08 + sr() * 0.12 });
 const crowd = []; for (let c = 0; c < 70; c++) crowd.push({ x: 20 + c * 17 + sr() * 6, row: c % 2, col: ['#ff6b6b', '#ffd23f', '#5dadec', '#7bd389', '#ff9ec7', '#b79cff', '#ff9f68', '#ffffff'][Math.floor(sr() * 8)], ph: sr() * 6.28 });
 const flowers = []; for (let f = 0; f < 26; f++) flowers.push({ x: 15 + sr() * (W - 30), y: TRACK_BOTTOM + 14 + sr() * (H - TRACK_BOTTOM - 26), c: ['#fff', '#ffd23f', '#ff9ec7'][Math.floor(sr() * 3)] });
 
 const particles = [];
-const bouncePhase = new Array(LANES).fill(0).map((_, i) => i * 0.7);
+const bouncePhase = new Array(64).fill(0).map((_, i) => i * 0.7);
 
-function laneY(i) { return TRACK_TOP + LANE_H * i + LANE_H / 2; }
+function layout(n) {
+  const lanes = Math.max(n, 1);
+  const laneH = TRACK_H / lanes;
+  const scale = Math.max(0.42, Math.min(1.15, laneH / 58));
+  return { n, laneH, scale };
+}
+function laneY(L, i) { return TRACK_TOP + L.laneH * i + L.laneH / 2; }
 function posToX(p) { return START_X + (FINISH_X - START_X) * Math.max(0, Math.min(1, p / TRACK_LENGTH)); }
 
 function roundRect(x, y, w, h, r) {
@@ -1135,7 +1372,7 @@ function roundRect(x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
 
-function drawBackground(t) {
+function drawBackground(t, phase) {
   const sky = ctx.createLinearGradient(0, 0, 0, 70);
   sky.addColorStop(0, '#9fdcff'); sky.addColorStop(1, '#d9f2ff');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, 70);
@@ -1147,7 +1384,7 @@ function drawBackground(t) {
   ctx.fillStyle = '#7d8bb8'; ctx.fillRect(0, 34, W, 46);
   ctx.fillStyle = '#6676a8'; ctx.fillRect(0, 56, W, 4);
   crowd.forEach((p) => {
-    const hop = Math.max(0, Math.sin(t * 0.008 + p.ph)) * (S.phase === 'racing' ? 4 : 1.5);
+    const hop = Math.max(0, Math.sin(t * 0.008 + p.ph)) * (phase === 'racing' ? 4 : 1.5);
     const y = 48 + p.row * 18 - hop;
     ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, y, 6, 0, 6.28); ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(p.x - 3, y - 1, 1.6, 1.6); ctx.fillRect(p.x + 1.5, y - 1, 1.6, 1.6);
@@ -1168,17 +1405,18 @@ function drawBackground(t) {
   });
 }
 
-function drawTrack() {
-  ctx.fillStyle = '#7fc457'; ctx.fillRect(0, TRACK_TOP, START_X - 50, LANE_H * LANES);
-  for (let i = 0; i < LANES; i++) {
+function drawTrack(L) {
+  ctx.fillStyle = '#7fc457'; ctx.fillRect(0, TRACK_TOP, START_X - 50, TRACK_H);
+  const lanes = Math.max(L.n, 1);
+  for (let i = 0; i < lanes; i++) {
     ctx.fillStyle = i % 2 ? '#d9a066' : '#e2ad74';
-    ctx.fillRect(START_X - 50, TRACK_TOP + LANE_H * i, W - START_X + 50, LANE_H);
+    ctx.fillRect(START_X - 50, TRACK_TOP + L.laneH * i, W - START_X + 50, L.laneH + 0.5);
   }
   dirtSpecks.forEach((s) => { ctx.fillStyle = 'rgba(110,60,20,' + s.a + ')'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill(); });
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(START_X - 50, TRACK_TOP - 4, W, 4); ctx.fillRect(START_X - 50, TRACK_BOTTOM, W, 4);
   ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 2; ctx.setLineDash([14, 12]);
-  for (let j = 1; j < LANES; j++) { const y = TRACK_TOP + LANE_H * j; ctx.beginPath(); ctx.moveTo(START_X - 50, y); ctx.lineTo(W, y); ctx.stroke(); }
+  for (let j = 1; j < lanes; j++) { const y = TRACK_TOP + L.laneH * j; ctx.beginPath(); ctx.moveTo(START_X - 50, y); ctx.lineTo(W, y); ctx.stroke(); }
   ctx.setLineDash([]);
   ctx.font = '13px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   [250, 500, 750].forEach((m) => {
@@ -1187,12 +1425,12 @@ function drawTrack() {
     roundRect(x - 18, TRACK_TOP - 18, 36, 16, 6); ctx.fillStyle = '#fff'; ctx.fill();
     ctx.fillStyle = '#2b2d42'; ctx.fillText(m + 'm', x, TRACK_TOP - 10);
   });
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(START_X - 3, TRACK_TOP, 6, LANE_H * LANES);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(START_X - 3, TRACK_TOP, 6, TRACK_H);
   const sq = 10;
   for (let fy = TRACK_TOP; fy < TRACK_BOTTOM; fy += sq) {
     for (let fx = 0; fx < 2; fx++) {
       ctx.fillStyle = ((fy - TRACK_TOP) / sq + fx) % 2 ? '#2b2d42' : '#ffffff';
-      ctx.fillRect(FINISH_X + fx * sq, fy, sq, sq);
+      ctx.fillRect(FINISH_X + fx * sq, fy, sq, Math.min(sq, TRACK_BOTTOM - fy));
     }
   }
   ctx.fillStyle = '#ff5c5c'; ctx.fillRect(FINISH_X + 4, TRACK_TOP - 26, 8, 22);
@@ -1206,82 +1444,44 @@ function fitText(text, maxW) {
   return s + '..';
 }
 
-function drawLaneLabels() {
-  const mine = myLane();
-  for (let i = 0; i < LANES; i++) {
-    const y = laneY(i);
+function drawLaneLabels(v, L) {
+  const mine = myLaneIn(v);
+  const ph = Math.min(42, L.laneH - 4);
+  for (let i = 0; i < L.n; i++) {
+    const y = laneY(L, i);
+    const r = v.lanes[i];
     if (i === mine) {
       ctx.fillStyle = 'rgba(255, 220, 80, .35)';
-      ctx.fillRect(START_X - 50, TRACK_TOP + LANE_H * i + 2, W - START_X + 50, LANE_H - 4);
+      ctx.fillRect(START_X - 50, TRACK_TOP + L.laneH * i + 1, W - START_X + 50, L.laneH - 2);
     }
-    roundRect(8, y - 21, START_X - 66, 42, 12);
+    roundRect(8, y - ph / 2, START_X - 66, ph, Math.min(12, ph / 2));
     ctx.fillStyle = i === mine ? '#fff6d6' : '#ffffff'; ctx.fill();
-    ctx.lineWidth = 2.5; ctx.strokeStyle = i === mine ? '#e0a800' : '#2b2d42'; ctx.stroke();
-    ctx.beginPath(); ctx.arc(30, y, 14, 0, 6.28); ctx.fillStyle = LANE_COLORS[i]; ctx.fill(); ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = '#2b2d42'; ctx.font = '17px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(String(i + 1), 30, y + 1);
-    const p = pickOf(i);
+    ctx.lineWidth = 2; ctx.strokeStyle = i === mine ? '#e0a800' : '#2b2d42'; ctx.stroke();
+    const br = Math.min(14, ph / 2 - 3);
+    ctx.beginPath(); ctx.arc(14 + br, y, br, 0, 6.28); ctx.fillStyle = COLORS[r.color]; ctx.fill(); ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.fillStyle = '#2b2d42'; ctx.font = Math.max(10, Math.round(br * 1.15)) + 'px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(i + 1), 14 + br, y + 1);
+    const tx = 20 + br * 2;
     ctx.textAlign = 'left';
-    ctx.font = '13px Jua, sans-serif'; ctx.fillStyle = '#7a7f99';
-    ctx.fillText(fitText(S.names[i], START_X - 128), 50, y - 8);
-    ctx.font = '15px Jua, sans-serif'; ctx.fillStyle = p ? '#2b2d42' : '#b3b7c9';
-    ctx.fillText(fitText(p ? p.nick : '빈자리', START_X - 128), 50, y + 10);
+    if (ph >= 34) {
+      ctx.font = '12px Jua, sans-serif'; ctx.fillStyle = '#7a7f99';
+      ctx.fillText(fitText(S.names[r.species - 1], START_X - 76 - tx), tx, y - 8);
+      ctx.font = '15px Jua, sans-serif'; ctx.fillStyle = '#2b2d42';
+      ctx.fillText(fitText(r.nick, START_X - 76 - tx), tx, y + 9);
+    } else {
+      ctx.font = Math.max(10, Math.min(14, ph - 6)) + 'px Jua, sans-serif'; ctx.fillStyle = '#2b2d42';
+      ctx.fillText(fitText(r.nick, START_X - 76 - tx), tx, y + 1);
+    }
   }
 }
 
-// cute fallback character: round body, ears, eyes, blush, number badge
-function drawBlob(x, y, i, squash, step, fx) {
-  const col = LANE_COLORS[i], dark = LANE_DARK[i];
-  const rw = 21 * (1 + squash * 0.12), rh = 21 * (1 - squash * 0.12);
-  ctx.save(); ctx.translate(x, y);
-  ctx.fillStyle = dark;
-  ctx.beginPath(); ctx.ellipse(-8 + step * 4, rh - 2, 6, 4, 0, 0, 6.28); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(8 - step * 4, rh - 2, 6, 4, 0, 0, 6.28); ctx.fill();
-  ctx.strokeStyle = dark; ctx.lineWidth = 4; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-rw + 2, 2); ctx.quadraticCurveTo(-rw - 12, -4 + step * 3, -rw - 8, -14); ctx.stroke();
-  ctx.fillStyle = col; ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 2.5;
-  ctx.beginPath(); ctx.moveTo(-12, -rh + 6); ctx.lineTo(-16, -rh - 12); ctx.lineTo(-3, -rh + 2); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(4, -rh + 2); ctx.lineTo(14, -rh - 13); ctx.lineTo(15, -rh + 7); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(0, 0, rw, rh, 0, 0, 6.28); ctx.fillStyle = col; ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(-2, 7, rw * 0.55, rh * 0.45, 0, 0, 6.28); ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fill();
-  const blink = (Math.floor(performance.now() / 120 + i * 7) % 40) === 0;
-  ctx.fillStyle = '#2b2d42';
-  if (fx === 2 || blink) {
-    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(3, -5); ctx.lineTo(9, -3); ctx.moveTo(12, -3); ctx.lineTo(18, -5); ctx.stroke();
-  } else {
-    ctx.beginPath(); ctx.ellipse(6, -4, 3, 4, 0, 0, 6.28); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(15, -4, 3, 4, 0, 0, 6.28); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillRect(6, -7, 1.6, 1.6); ctx.fillRect(15, -7, 1.6, 1.6);
-  }
-  ctx.fillStyle = 'rgba(255,100,120,.55)';
-  ctx.beginPath(); ctx.ellipse(2, 3, 3.5, 2.2, 0, 0, 6.28); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(19, 3, 3, 2, 0, 0, 6.28); ctx.fill();
-  ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 1.6;
-  ctx.beginPath(); ctx.arc(11, 2, 2.4, 0.2, Math.PI - 0.2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(-9, 6, 7.5, 0, 6.28); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 1.8; ctx.strokeStyle = '#2b2d42'; ctx.stroke();
-  ctx.fillStyle = '#2b2d42'; ctx.font = '11px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(String(i + 1), -9, 6.5);
-  ctx.restore();
-}
+function spawn(p) { if (particles.length < 700) particles.push(p); }
 
-function drawRunnerImage(x, y, i, squash) {
-  const img = runnerImgs[i].img;
-  const maxS = 54;
-  const sc = Math.min(maxS / img.naturalWidth, maxS / img.naturalHeight);
-  const w = img.naturalWidth * sc * (1 + squash * 0.1), h = img.naturalHeight * sc * (1 - squash * 0.1);
-  ctx.drawImage(img, x - w / 2, y + 22 - h, w, h);
-  ctx.beginPath(); ctx.arc(x - w / 2 + 4, y + 14, 8, 0, 6.28); ctx.fillStyle = LANE_COLORS[i]; ctx.fill();
-  ctx.lineWidth = 2; ctx.strokeStyle = '#2b2d42'; ctx.stroke();
-  ctx.fillStyle = '#2b2d42'; ctx.font = '11px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(String(i + 1), x - w / 2 + 4, y + 14.5);
-}
-
-function spawn(p) { if (particles.length < 600) particles.push(p); }
-
-function burstConfetti(lane) {
-  const x = FINISH_X, y = laneY(lane);
+function burstConfetti(lane, n) {
+  const L = layout(n);
+  const x = FINISH_X, y = laneY(L, lane);
   for (let k = 0; k < 90; k++) {
-    spawn({ kind: 'confetti', x, y, vx: (Math.random() - 0.7) * 9, vy: -Math.random() * 9 - 2, g: 0.32, life: 90 + Math.random() * 40, max: 130, c: LANE_COLORS[k % 8], s: 3 + Math.random() * 4, rot: Math.random() * 6 });
+    spawn({ kind: 'confetti', x, y, vx: (Math.random() - 0.7) * 9, vy: -Math.random() * 9 - 2, g: 0.32, life: 90 + Math.random() * 40, max: 130, c: COLORS[k % COLORS.length], s: 3 + Math.random() * 4, rot: Math.random() * 6 });
   }
 }
 
@@ -1319,75 +1519,91 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
-function drawRunners(dt, snap) {
-  const racing = S.phase === 'racing';
-  for (let i = 0; i < LANES; i++) {
-    const speed = snap.speed[i];
+function drawRunners(dt, v, L, snap) {
+  const racing = v.phase === 'racing';
+  for (let i = 0; i < L.n; i++) {
+    const r = v.lanes[i];
+    const speed = snap.speed[i] || 0;
     const finished = snap.order.indexOf(i) >= 0;
     const moving = racing && !finished && speed > 0.1;
     const rate = moving ? 0.010 + speed * 0.0016 : 0.004;
-    bouncePhase[i] += dt * rate;
-    const hopAmp = moving ? 9 : (S.phase === 'countdown' ? 3 : 2.5);
-    const s = Math.abs(Math.sin(bouncePhase[i]));
+    bouncePhase[i % 64] += dt * rate;
+    const hopAmp = (moving ? 9 : (v.phase === 'countdown' ? 3 : 2.5)) * L.scale;
+    const s = Math.abs(Math.sin(bouncePhase[i % 64]));
     const hop = s * hopAmp;
     const squash = moving ? (1 - s) * 0.9 - 0.2 : 0;
-    const step = Math.sin(bouncePhase[i] * 2);
-    const x = posToX(snap.pos[i]) - 24;
-    const baseY = laneY(i) + 2;
+    const step = Math.sin(bouncePhase[i % 64] * 2);
+    const x = posToX(snap.pos[i] || 0) - 24 * L.scale;
+    const baseY = laneY(L, i) + 2 * L.scale;
     const y = baseY - hop;
     const fx = moving ? snap.fx[i] : 0;
 
     ctx.fillStyle = 'rgba(70,40,10,.25)';
-    ctx.beginPath(); ctx.ellipse(x, baseY + 21, 18 - hop * 0.6, 4.5, 0, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x, baseY + 21 * L.scale, Math.max(4, (18 - hop * 0.6) * L.scale), 4.5 * L.scale, 0, 0, 6.28); ctx.fill();
 
     if (moving) {
-      if (Math.random() < 0.18) spawn({ kind: 'dust', x: x - 18, y: baseY + 18, vx: -0.8 - Math.random(), vy: -0.3, life: 22, max: 22, s: 3 + Math.random() * 2 });
+      if (Math.random() < 0.18) spawn({ kind: 'dust', x: x - 18 * L.scale, y: baseY + 18 * L.scale, vx: -0.8 - Math.random(), vy: -0.3, life: 22, max: 22, s: (3 + Math.random() * 2) * L.scale });
       if (fx === 1) {
-        if (Math.random() < 0.55) spawn({ kind: 'line', x: x - 26, y: baseY - 14 + Math.random() * 30, vx: -3, vy: 0, life: 12, max: 12, len: 16 + Math.random() * 16, c: 'rgba(255,255,255,.9)' });
-        if (Math.random() < 0.45) spawn({ kind: 'spark', x: x - 10 + Math.random() * 30, y: y - 20 + Math.random() * 30, vx: -1.5, vy: -0.6, life: 20, max: 20, s: 4 + Math.random() * 3, rot: Math.random() * 3, c: Math.random() < 0.5 ? '#ffe14d' : '#ffffff' });
+        if (Math.random() < 0.55) spawn({ kind: 'line', x: x - 26 * L.scale, y: baseY + (-14 + Math.random() * 30) * L.scale, vx: -3, vy: 0, life: 12, max: 12, len: (16 + Math.random() * 16) * L.scale, c: 'rgba(255,255,255,.9)' });
+        if (Math.random() < 0.45) spawn({ kind: 'spark', x: x + (-10 + Math.random() * 30) * L.scale, y: y + (-20 + Math.random() * 30) * L.scale, vx: -1.5, vy: -0.6, life: 20, max: 20, s: (4 + Math.random() * 3) * L.scale, rot: Math.random() * 3, c: Math.random() < 0.5 ? '#ffe14d' : '#ffffff' });
       } else if (fx === 2) {
-        if (Math.random() < 0.12) spawn({ kind: 'sweat', x: x + 14 + Math.random() * 8, y: y - 26, vx: 0.6, vy: -1.1, g: 0.12, life: 26, max: 26 });
+        if (Math.random() < 0.12) spawn({ kind: 'sweat', x: x + (14 + Math.random() * 8) * L.scale, y: y - 26 * L.scale, vx: 0.6, vy: -1.1, g: 0.12, life: 26, max: 26 });
       }
     }
-
     if (fx === 1) {
-      const gr = ctx.createRadialGradient(x, y, 6, x, y, 36);
+      const gr = ctx.createRadialGradient(x, y, 6 * L.scale, x, y, 36 * L.scale);
       gr.addColorStop(0, 'rgba(255,240,120,.55)'); gr.addColorStop(1, 'rgba(255,240,120,0)');
-      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, 36, 0, 6.28); ctx.fill();
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, 36 * L.scale, 0, 6.28); ctx.fill();
     }
-
-    if (runnerImgs[i].ok) drawRunnerImage(x, y, i, squash);
-    else drawBlob(x, y, i, squash, step, fx);
+    ctx.save(); ctx.translate(x, y); ctx.scale(L.scale, L.scale);
+    drawCharacter(ctx, 0, 0, r, i + 1, squash, step, fx, i);
+    ctx.restore();
 
     const rk = snap.order.indexOf(i);
     if (rk >= 0) {
-      const bx = Math.min(W - 26, x + 52), by = baseY - 2;
-      ctx.beginPath(); ctx.arc(bx, by, 14, 0, 6.28);
+      const br = Math.max(8, 14 * L.scale);
+      const bx = Math.min(W - br - 4, x + 52 * L.scale), by = baseY - 2;
+      ctx.beginPath(); ctx.arc(bx, by, br, 0, 6.28);
       ctx.fillStyle = rk === 0 ? '#ffcb05' : (rk === 1 ? '#d6dbe8' : (rk === 2 ? '#e7a36b' : '#ffffff'));
-      ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#2b2d42'; ctx.stroke();
-      ctx.fillStyle = '#2b2d42'; ctx.font = '14px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText((rk + 1) + '위', bx, by + 1);
+      ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#2b2d42'; ctx.stroke();
+      ctx.fillStyle = '#2b2d42'; ctx.font = Math.round(br) + 'px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(rk + 1), bx, by + 1);
     }
   }
 }
 
-function drawOverlay(t, info) {
+function banner(text, sub) {
+  ctx.font = '22px Jua, sans-serif';
+  const w = Math.max(420, ctx.measureText(text).width + 60);
+  const h = sub ? 78 : 52;
+  const y0 = TRACK_TOP + TRACK_H / 2 - h / 2;
+  roundRect(W / 2 - w / 2, y0, w, h, 16);
+  ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#2b2d42'; ctx.stroke();
+  ctx.fillStyle = '#2b2d42'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, W / 2, y0 + 27);
+  if (sub) { ctx.font = '17px Jua, sans-serif'; ctx.fillStyle = '#7a7f99'; ctx.fillText(sub, W / 2, y0 + 56); }
+}
+
+function drawOverlay(t, v) {
   let label = null, sub = null, scale = 1;
-  if (info.phase === 'countdown') {
-    label = String(info.countdown);
-    const k = Math.min(1, (t - S.countdownChangedAt) / 350);
-    scale = 1.6 - 0.6 * (1 - Math.pow(1 - k, 3));
-    sub = '준비!';
-  } else if (info.phase === 'racing' && t < S.goUntil) {
-    label = 'GO!';
-    scale = 1 + (S.goUntil - t) / 900 * 0.4;
-  } else if (info.phase === 'waiting' || info.phase === 'connecting') {
-    const text = info.phase === 'connecting' ? '연결 중...' : '선점 진행 중 (' + takenCount() + '/8) - 관리자 시작 대기';
-    roundRect(W / 2 - 230, TRACK_TOP + LANE_H * 4 - 26, 460, 52, 16);
-    ctx.fillStyle = 'rgba(255,255,255,.88)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#2b2d42'; ctx.stroke();
-    ctx.fillStyle = '#2b2d42'; ctx.font = '22px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(text, W / 2, TRACK_TOP + LANE_H * 4 + 1);
-    return;
+  const n = v.lanes ? v.lanes.length : 0;
+  switch (v.phase) {
+    case 'connecting': banner('연결 중...'); return;
+    case 'open':
+      banner(fmtKST(v.slot) + ' 경기 참가 접수 중 (' + n + '명 / 최소 ' + MIN_PLAYERS + '명)', '마감까지 ' + fmtDur(closeAtOf(v.slot) - serverNow()));
+      return;
+    case 'closed': banner('참가 마감! ' + n + '명 출전', fmtKST(v.slot) + ' 출발까지 ' + fmtDur(v.slot - serverNow())); return;
+    case 'draw': banner('추첨 준비 중...', S.drandError ? '공용 난수 서버 재연결 중' : '공용 난수를 받아오는 중'); return;
+    case 'canceled': banner('참가 인원 부족 (' + v.count + '/' + MIN_PLAYERS + ') - 이번 경기 취소', '다음 경기 ' + fmtKST(v.next) + ' (다시 참가하기를 눌러 주세요)'); return;
+    case 'countdown': {
+      label = String(S.cdShown || 3);
+      const k = Math.min(1, (t - S.cdAt) / 350);
+      scale = 1.6 - 0.6 * (1 - Math.pow(1 - k, 3));
+      sub = '준비!';
+      break;
+    }
+    case 'racing': if (t < S.goUntil) { label = 'GO!'; scale = 1 + (S.goUntil - t) / 900 * 0.4; } break;
+    default: break;
   }
   if (!label) return;
   ctx.fillStyle = 'rgba(30,34,60,.25)'; ctx.fillRect(0, 0, W, H);
@@ -1403,25 +1619,28 @@ function drawOverlay(t, info) {
 }
 
 let lastFrame = performance.now();
+let lastLive = 0;
 function frame(t) {
   const dt = Math.min(50, t - lastFrame); lastFrame = t;
-  let info, snap;
+  let v, snap;
   try {
-    snap = raceSnapshot(phaseInfo());
-    info = watchPhase(t, snap);
+    v = tickView(t);
+    snap = raceSnapshot(v);
+    if (t - lastLive > 250) { lastLive = t; renderLiveRank(v, snap); }
   } catch (e) {
     console.error(e);
-    info = { phase: 'waiting' };
-    snap = { pos: new Array(LANES).fill(0), speed: new Array(LANES).fill(0), fx: new Array(LANES).fill(0), order: [] };
+    v = { phase: 'connecting', lanes: [] };
+    snap = { pos: [], speed: [], fx: [], order: [] };
   }
+  const L = layout(v.lanes.length);
   ctx.clearRect(0, 0, W, H);
-  drawBackground(t);
-  drawTrack();
-  drawLaneLabels();
+  drawBackground(t, v.phase);
+  drawTrack(L);
+  drawLaneLabels(v, L);
   updateParticles(dt);
-  drawRunners(dt, snap);
+  drawRunners(dt, v, L, snap);
   drawParticles();
-  drawOverlay(t, info);
+  drawOverlay(t, v);
   requestAnimationFrame(frame);
 }
 
